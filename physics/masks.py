@@ -99,6 +99,47 @@ def line_space_grating(x: np.ndarray, pitch: float, duty_cycle: float = 0.5) -> 
     return mask
 
 
+def two_lines(x: np.ndarray, width: float, separation: float, center: float = 0.0) -> np.ndarray:
+    """
+    Create a binary mask with two identical parallel lines, symmetric about `center`.
+
+    WHY THIS EXISTS IN THE PIPELINE
+    --------------------------------
+    This is the third pattern in the Week 8 target library, alongside
+    single_line and line_space_grating. Physically it's the simplest case
+    of "two nearby features" — the discrete analogue of Young's double
+    slit. Its Fraunhofer pattern (computed by physics/diffraction.py) is
+    the single-line sinc envelope multiplied by a cosine interference term,
+    which follows directly from the linearity + shift theorems (Goodman
+    §2.1.3): shifting single_line by ±separation/2 multiplies its spectrum
+    by exp(∓jπ·f·separation), and summing the two shifted copies gives a
+    real factor of 2·cos(π·f·separation). This pattern exists specifically
+    to give the diffraction simulator a case with *interference* structure
+    on top of the *diffraction* envelope, distinct from the pure-envelope
+    single line and the pure-order-spacing grating.
+
+    Parameters
+    ----------
+    x          : ndarray — spatial grid (µm)
+    width      : float   — width of each individual line, in µm
+    separation : float   — center-to-center distance between the two lines, in µm
+    center     : float   — midpoint between the two lines, in µm (default 0)
+
+    Returns
+    -------
+    mask : ndarray of 0s and 1s
+
+    Notes
+    -----
+    Built from two calls to single_line, at center - separation/2 and
+    center + separation/2, combined with np.maximum so overlapping lines
+    (separation < width) don't double-count amplitude to a value above 1.
+    """
+    left = single_line(x, width, center=center - separation / 2.0)
+    right = single_line(x, width, center=center + separation / 2.0)
+    return np.maximum(left, right)
+
+
 def grid_info(x: np.ndarray) -> dict:
     """
     Return key grid parameters as a dict. Useful for sanity-checking sampling.
