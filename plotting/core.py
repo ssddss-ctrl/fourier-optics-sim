@@ -1,16 +1,23 @@
 """
 plotting/core.py
 ----------------
-Reusable 4-panel plotting scaffold for the Fourier Optics simulator.
+Reusable 3-panel plotting scaffold for the Fourier Optics simulator.
 
-The four panels we'll use throughout this project:
+The three panels shown here describe the mask DESIGN side of the pipeline:
   1. Target   — what we want to print (the ideal pattern)
   2. Mask     — what we put on the reticle (input to optical system)
   3. Spectrum — Fourier transform of the mask (frequency content)
-  4. Image    — aerial image at wafer plane (output of optical system)
 
-In Week 1, panels 1–3 are populated; panel 4 is a placeholder until
-we build the propagation engine (Week 7+).
+This used to be a 4-panel scaffold with a 4th "Aerial Image" quadrant that
+was a locked placeholder from Week 1 through Week 9. As of Week 10, the
+actual aerial image (coherent or incoherent, live) and the printed-feature/
+EPE comparison are their own dedicated panels in app/main.py (using
+physics/lens.py and physics/imaging.py directly) -- they show what the
+optical SYSTEM does to the mask, which is a conceptually different thing
+from this module's job of showing what was DESIGNED. Keeping a 4th
+"Aerial Image" quadrant here after that panel existed elsewhere would just
+duplicate it (or worse, show a stale copy), so it was dropped rather than
+wired up twice.
 
 All spatial units: µm
 All frequency units: cycles/µm (µm⁻¹)
@@ -19,14 +26,22 @@ All frequency units: cycles/µm (µm⁻¹)
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from matplotlib.figure import Figure
+from matplotlib.axes import Axes
+# Figure/Axes imported directly from their defining submodules rather than
+# used as plt.Figure / plt.Axes -- Pylance's matplotlib stubs don't export
+# either name from matplotlib.pyplot (reportPrivateImportUsage), the same
+# issue already hit and fixed this way in the Week 9 build log
+# (physics/lens.py's docstring notes the identical fix for plt.Figure).
 
 
 # ── Style constants ──────────────────────────────────────────────────────────
 MASK_COLOR    = "#2C3E50"   # dark blue-grey for mask bars
 TARGET_COLOR  = "#E74C3C"   # red for target/desired pattern
 SPECTRUM_COLOR = "#2980B9"  # blue for spectrum magnitude
-IMAGE_COLOR   = "#27AE60"   # green for aerial image intensity
-PLACEHOLDER_ALPHA = 0.3
+IMAGE_COLOR   = "#27AE60"   # green for aerial image intensity (used by
+                             # app/main.py's own live Aerial Image panel)
+SPINE_COLOR   = "#B0B4B8"   # soft grey for the remaining axis spines
 
 
 def _freq_axis(x: np.ndarray) -> np.ndarray:
@@ -46,55 +61,31 @@ def _freq_axis(x: np.ndarray) -> np.ndarray:
     return freqs
 
 
-def compute_spectrum(mask: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    """
-    Compute the magnitude spectrum of a 1D mask array.
-
-    Returns
-    -------
-    freqs  : ndarray — frequency axis (cycles/µm), centered
-    magnitude : ndarray — |FT(mask)|, normalized by N so peak ≈ duty cycle
-
-    Notes
-    -----
-    We normalize by N (number of points) so the DC component equals the
-    spatial average of the mask (e.g., 0.5 for a 50% duty cycle grating).
-    This normalization makes the spectrum physically meaningful regardless
-    of grid size.
-
-    The phase spectrum is computed and accessible if you call np.fft.fftshift
-    on np.fft.fft(mask) directly — we'll use that in later weeks.
-    """
-    N = len(mask)
-    spectrum = np.fft.fftshift(np.fft.fft(mask)) / N
-    magnitude = np.abs(spectrum)
-    # Build frequency axis from x spacing — we need x here.
-    # We'll accept freqs as a separate argument in the full function below.
-    return magnitude
-
-
-def four_panel_plot(
+def three_panel_plot(
     x: np.ndarray,
     target: np.ndarray,
     mask: np.ndarray,
-    image: np.ndarray | None = None,
     title: str = "",
     spectrum_xlim: tuple | None = None,
-) -> plt.Figure:
+) -> Figure:
     """
-    Generate the standard 4-panel figure for this project.
+    Generate the standard 3-panel mask-design figure for this project.
 
     Layout
     ------
-    [Target] [Mask]
-    [Spectrum] [Image (or placeholder)]
+    [Target] [Mask] [Spectrum]
+
+    (Formerly a 2x2 "four_panel_plot" with a 4th Aerial Image quadrant
+    that was a locked placeholder from Week 1 through Week 9. Renamed and
+    the 4th quadrant dropped in Week 10, once the real aerial image /
+    printed-feature panels existed as their own live panels in
+    app/main.py -- see this module's docstring.)
 
     Parameters
     ----------
     x       : 1D spatial grid (µm)
     target  : desired pattern array (0/1)
     mask    : mask transmission array (0/1)
-    image   : aerial image intensity array, or None (placeholder shown)
     title   : suptitle for the figure
     spectrum_xlim : (fmin, fmax) to zoom the spectrum axis, or None for auto
 
@@ -105,9 +96,9 @@ def four_panel_plot(
     freqs = _freq_axis(x)
     spec_mag = np.abs(np.fft.fftshift(np.fft.fft(mask)) / len(mask))
 
-    fig = plt.figure(figsize=(12, 7))
+    fig = plt.figure(figsize=(15, 3.7))
     fig.patch.set_facecolor("#F8F9FA")
-    gs = gridspec.GridSpec(2, 2, hspace=0.45, wspace=0.35)
+    gs = gridspec.GridSpec(1, 3, wspace=0.3)
 
     # ── Panel 1: Target ──────────────────────────────────────────────────────
     ax1 = fig.add_subplot(gs[0, 0])
@@ -132,10 +123,10 @@ def four_panel_plot(
     _style_ax(ax2)
 
     # ── Panel 3: Spectrum ────────────────────────────────────────────────────
-    ax3 = fig.add_subplot(gs[1, 0])
+    ax3 = fig.add_subplot(gs[0, 2])
     ax3.stem(
         freqs, spec_mag,
-        linefmt="C0-", markerfmt="C0o", basefmt="k-",
+        linefmt="C0-", markerfmt="C0o", basefmt=SPINE_COLOR,
     )
     ax3.set_title("③ Mask Spectrum  |G(f)|", fontweight="bold", fontsize=11)
     ax3.set_xlabel("Spatial frequency  (cycles/µm)")
@@ -144,38 +135,26 @@ def four_panel_plot(
         ax3.set_xlim(spectrum_xlim)
     _style_ax(ax3)
 
-    # ── Panel 4: Aerial Image (or placeholder) ───────────────────────────────
-    ax4 = fig.add_subplot(gs[1, 1])
-    if image is not None:
-        ax4.plot(x, image, color=IMAGE_COLOR, lw=1.8)
-        ax4.fill_between(x, image, alpha=0.4, color=IMAGE_COLOR)
-        ax4.set_title("④ Aerial Image  (intensity)", fontweight="bold", fontsize=11)
-        ax4.set_ylabel("Intensity (a.u.)")
-    else:
-        ax4.text(
-            0.5, 0.5,
-            "Aerial Image\n(Week 9+)",
-            ha="center", va="center",
-            fontsize=13, color="grey", style="italic",
-            transform=ax4.transAxes,
-        )
-        ax4.set_title("④ Aerial Image", fontweight="bold", fontsize=11, color="grey")
-        ax4.set_facecolor("#EFEFEF")
-        ax4.set_alpha(PLACEHOLDER_ALPHA)
-    ax4.set_xlabel("x  (µm)")
-    ax4.set_xlim(x[0], x[-1])
-    _style_ax(ax4)
-
     if title:
-        fig.suptitle(title, fontsize=13, fontweight="bold", y=1.01)
+        fig.suptitle(title, fontsize=13, fontweight="bold", y=1.05)
 
     return fig
 
 
-def _style_ax(ax: plt.Axes) -> None:
-    """Apply consistent axis styling across all panels."""
+def _style_ax(ax: Axes) -> None:
+    """
+    Apply consistent, minimal axis styling across all panels.
+
+    Aesthetic pass (Week 10): dropped the dashed gridlines entirely --
+    with filled/stem plots against a light background, gridlines mostly
+    added visual noise rather than aiding readability. Kept only the
+    bottom and left spines (top/right already removed), softened to a
+    light grey rather than full black so they recede behind the data
+    instead of competing with it, and lightened tick label size slightly.
+    """
     ax.set_facecolor("#FFFFFF")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    ax.grid(True, linestyle="--", alpha=0.4, linewidth=0.7)
-    ax.tick_params(labelsize=9)
+    ax.spines["left"].set_color(SPINE_COLOR)
+    ax.spines["bottom"].set_color(SPINE_COLOR)
+    ax.tick_params(labelsize=9, colors="#444444")
