@@ -43,7 +43,7 @@ export default function Landing() {
       <motion.section
         ref={section1Ref}
         style={{ opacity: section1Opacity, scale: section1Scale }}
-        className="relative flex h-screen flex-col items-center justify-center gap-6 bg-page px-4"
+        className="relative flex h-screen flex-col items-center justify-center gap-10 bg-page px-4"
       >
         <h1 className="text-center text-4xl font-semibold text-ink sm:text-5xl">
           Fourier Optics Lithography Simulator
