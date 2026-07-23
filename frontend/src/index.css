@@ -1,1 +1,26 @@
 @import "tailwindcss";
+
+/*
+ * Dark theme tokens, reused verbatim from plotting/interactive.py's Plotly
+ * dark theme (backend/physics side) so the simulator page reads as one
+ * visual system once it's rebuilt in React -- same surfaces, same
+ * categorical series colors (validated there against the dataviz skill's
+ * CVD/contrast checks; not re-picked here).
+ */
+@theme {
+  --color-page: #0d0d0d;          /* PAGE_PLANE */
+  --color-surface: #1a1a19;       /* CHART_SURFACE */
+  --color-ink: #ffffff;           /* PRIMARY_INK */
+  --color-ink-secondary: #c3c2b7; /* SECONDARY_INK */
+  --color-ink-muted: #898781;     /* MUTED_INK */
+  --color-grid: #2c2c2a;          /* GRIDLINE_COLOR */
+  --color-axis: #383835;          /* AXIS_LINE_COLOR */
+  --color-primary: #3987e5;       /* PRIMARY_COLOR (blue) */
+  --color-phase: #008300;         /* PHASE_COLOR (green) */
+  --color-target: #e66767;        /* TARGET_COLOR (red) */
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-ink);
+}
