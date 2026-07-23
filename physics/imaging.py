@@ -54,12 +54,14 @@ import numpy as np
 from fft_engine import fft1d, ifft1d
 from constants import WAVELENGTH, NA_DEFAULT
 from lens import pupil_function_freq
+from aberrations import focus_error_wavefront, generalized_pupil_function
 
 
 # ── ATF / OTF ────────────────────────────────────────────────────────────────
 
 def amplitude_point_spread_function(grid, wavelength: float = WAVELENGTH,
-                                     NA: float = NA_DEFAULT) -> Tuple[np.ndarray, np.ndarray]:
+                                     NA: float = NA_DEFAULT,
+                                     defocus_waves: float = 0.0) -> Tuple[np.ndarray, np.ndarray]:
     """
     Coherent amplitude point-spread function h(x): the real-space impulse
     response of the imaging system, i.e. the image of an infinitesimal
@@ -89,29 +91,48 @@ def amplitude_point_spread_function(grid, wavelength: float = WAVELENGTH,
     once, here, and reused by both intensity_point_spread_function and
     optical_transfer_function below, rather than being re-derived in each.
 
+    DEFOCUS (Week 11, aberrations.py -- reused, not reimplemented)
+    -------------------------------------------------------------------
+    When defocus_waves is nonzero, the real pupil above is replaced by the
+    generalized (phase-carrying) pupil aberrations.generalized_pupil_function
+    produces from aberrations.focus_error_wavefront's defocus term (build
+    notes Eq. 14/16) before the inverse transform -- i.e. H becomes P_G(fx)
+    = P(fx)*exp(j*k*W(fx)) instead of the bare P(fx). defocus_waves=0.0
+    skips this entirely, so H is exactly lens.pupil_function_freq's own
+    output with no dtype/value change -- the Week 10 unaberrated behavior
+    is a strict special case, not a separately maintained code path.
+
     Parameters
     ----------
-    grid       : Grid1D — provides the frequency axis grid.f and dx
-    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
-    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    grid          : Grid1D — provides the frequency axis grid.f and dx
+    wavelength    : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA            : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    defocus_waves : float — peak defocus wavefront error, in units of
+                    wavelength (0.0 = no aberration, matches Week 10 exactly)
 
     Returns
     -------
     h : ndarray, shape (N,), complex — amplitude PSF on grid.x
-    H : ndarray, shape (N,) — the ATF (hard-edged pupil) on grid.f, returned
-        alongside h so callers don't need a second call to
-        lens.pupil_function_freq to get the same array
+    H : ndarray, shape (N,) — the ATF on grid.f: the bare hard-edged pupil
+        when defocus_waves=0.0 (real), or the generalized (complex) pupil
+        otherwise. Returned alongside h so callers don't need a second
+        call to reconstruct the same array.
     """
     H = pupil_function_freq(grid, NA=NA, wavelength=wavelength)
+    if defocus_waves != 0.0:
+        W = focus_error_wavefront(grid, defocus_waves=defocus_waves, NA=NA, wavelength=wavelength)
+        H = generalized_pupil_function(H, W, wavelength=wavelength)
     h = ifft1d(H, grid.dx)
     return h, H
 
 
 def optical_transfer_function(grid, wavelength: float = WAVELENGTH,
-                               NA: float = NA_DEFAULT) -> Tuple[np.ndarray, np.ndarray]:
+                               NA: float = NA_DEFAULT,
+                               defocus_waves: float = 0.0) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Optical transfer function (OTF) of a diffraction-limited, unaberrated
-    imaging system: the frequency response for INCOHERENT illumination.
+    Optical transfer function (OTF) of a diffraction-limited imaging
+    system: the frequency response for INCOHERENT illumination. Unaberrated
+    when defocus_waves=0.0 (the Week 10 case); carries defocus otherwise.
 
     Goodman connection
     -------------------
@@ -150,28 +171,45 @@ def optical_transfer_function(grid, wavelength: float = WAVELENGTH,
       must never exceed its zero-frequency value of 1. Checked directly:
       max(|𝓗|) over the full computed array equals exactly 1.0, attained
       only at fx=0, with no discretization artifact pushing it above 1.
-    - For an unaberrated system, 𝓗 must be real (Goodman's aberration
-      discussion in 6.4.3 attributes any imaginary/negative-going part of
-      the OTF specifically to phase errors W(x,y), absent here). Checked:
-      max(|Im(𝓗)|) = 1.7e-16, i.e. floating-point noise, confirming 𝓗 is
-      real to numerical precision as expected.
+    - For an unaberrated system (defocus_waves=0.0), 𝓗 must be real
+      (Goodman's aberration discussion in 6.4.3 attributes any
+      imaginary/negative-going part of the OTF specifically to phase
+      errors W(x,y), absent here). Checked: max(|Im(𝓗)|) = 1.7e-16, i.e.
+      floating-point noise, confirming 𝓗 is real to numerical precision as
+      expected.
+
+    DEFOCUS (Week 11)
+    -------------------------------------------------------------------
+    defocus_waves passes straight through to
+    amplitude_point_spread_function, which is where the generalized
+    (complex) pupil is actually built (aberrations.py, reused here rather
+    than reimplemented) -- this function's job is unchanged: square the
+    resulting h, transform, and normalize by DC. With defocus_waves != 0.0,
+    𝓗 genuinely goes complex and, per Goodman 6.4.3, can go negative
+    (contrast reversal) at frequencies where the aberration is severe
+    enough -- Property 3 above (|𝓗| <= 1) still holds, since it follows
+    from Schwarz's inequality for any pupil, aberrated or not.
 
     Parameters
     ----------
-    grid       : Grid1D — provides the frequency axis grid.f and dx
-    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
-    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    grid          : Grid1D — provides the frequency axis grid.f and dx
+    wavelength    : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA            : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    defocus_waves : float — peak defocus wavefront error, in units of
+                    wavelength (0.0 = no aberration, matches Week 10 exactly)
 
     Returns
     -------
     OTF : ndarray, shape (N,), complex — normalized OTF on grid.f
-        (𝓗(0) = 1 exactly; real-valued to numerical precision for this
-        unaberrated pupil, but kept complex since Week 11's aberrated
-        pupils will genuinely produce a complex 𝓗)
-    H   : ndarray, shape (N,) — the ATF (hard-edged pupil) on grid.f,
-        returned for convenience/plotting alongside the OTF
+        (𝓗(0) = 1 exactly; real-valued to numerical precision when
+        defocus_waves=0.0, genuinely complex/possibly negative-real
+        otherwise)
+    H   : ndarray, shape (N,) — the ATF on grid.f (real hard-edged pupil,
+        or complex generalized pupil when defocus_waves != 0.0), returned
+        for convenience/plotting alongside the OTF
     """
-    h, H = amplitude_point_spread_function(grid, wavelength=wavelength, NA=NA)
+    h, H = amplitude_point_spread_function(grid, wavelength=wavelength, NA=NA,
+                                            defocus_waves=defocus_waves)
     intensity_psf = np.abs(h) ** 2
     OTF_raw = fft1d(intensity_psf, grid.dx)
     dc_index = int(np.argmin(np.abs(grid.f)))
@@ -182,11 +220,12 @@ def optical_transfer_function(grid, wavelength: float = WAVELENGTH,
 # ── Aerial images ────────────────────────────────────────────────────────────
 
 def incoherent_aerial_image(mask: np.ndarray, grid, wavelength: float = WAVELENGTH,
-                             NA: float = NA_DEFAULT) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                             NA: float = NA_DEFAULT,
+                             defocus_waves: float = 0.0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Incoherent aerial image: the wafer-plane intensity produced by imaging
-    `mask` through a diffraction-limited, unaberrated system under
-    INCOHERENT illumination.
+    `mask` through a diffraction-limited system (unaberrated when
+    defocus_waves=0.0) under INCOHERENT illumination.
 
     Goodman connection
     -------------------
@@ -245,14 +284,26 @@ def incoherent_aerial_image(mask: np.ndarray, grid, wavelength: float = WAVELENG
       fundamentally different (non-negative, non-oscillatory) intensity
       PSF compared to the coherent path's amplitude-domain ringing.
 
+    DEFOCUS (Week 11)
+    -------------------------------------------------------------------
+    defocus_waves passes straight through to optical_transfer_function
+    (and, beneath that, amplitude_point_spread_function/aberrations.py) --
+    this function's own frequency-domain multiply is unchanged, since
+    Eq. 6-26's object-spectrum-times-OTF relation doesn't care whether the
+    OTF came from an aberrated or unaberrated pupil. defocus_waves=0.0
+    reproduces the Week 10 behavior exactly (OTF is untouched, so
+    G_obj * OTF is identical).
+
     Parameters
     ----------
-    mask       : ndarray, shape (N,) — mask transmission (0/1), on grid.x;
-                  treated as the object intensity transmittance directly
-                  (valid because mask is binary, so mask^2 == mask)
-    grid       : Grid1D — mask's spatial/frequency grid (from grid.py)
-    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
-    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    mask          : ndarray, shape (N,) — mask transmission (0/1), on grid.x;
+                     treated as the object intensity transmittance directly
+                     (valid because mask is binary, so mask^2 == mask)
+    grid          : Grid1D — mask's spatial/frequency grid (from grid.py)
+    wavelength    : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA            : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    defocus_waves : float — peak defocus wavefront error, in units of
+                     wavelength (0.0 = no aberration, matches Week 10 exactly)
 
     Returns
     -------
@@ -263,11 +314,13 @@ def incoherent_aerial_image(mask: np.ndarray, grid, wavelength: float = WAVELENG
     OTF       : ndarray, shape (N,), complex — the normalized OTF actually
                  applied (returned so callers/plots don't need a second
                  call to optical_transfer_function)
-    H         : ndarray, shape (N,) — the ATF (hard-edged pupil) actually
-                 applied, returned for side-by-side plotting against the
-                 coherent path's own P
+    H         : ndarray, shape (N,) — the ATF actually applied (real
+                 hard-edged pupil, or complex generalized pupil when
+                 defocus_waves != 0.0), returned for side-by-side plotting
+                 against the coherent path's own P
     """
-    OTF, H = optical_transfer_function(grid, wavelength=wavelength, NA=NA)
+    OTF, H = optical_transfer_function(grid, wavelength=wavelength, NA=NA,
+                                        defocus_waves=defocus_waves)
     G_obj = fft1d(mask, grid.dx)
     intensity = np.real(ifft1d(G_obj * OTF, grid.dx))
     return intensity, OTF, H

@@ -17,30 +17,47 @@ automatically correct the mask to compensate for optical distortion (OPC).
 
 ## Running the app
 
+The app is a React frontend + FastAPI backend (two processes, run in separate terminals):
+
 ```bash
-pip install -r requirements.txt
-streamlit run app/main.py
+# Backend (FastAPI) — http://localhost:8000
+pip install -r requirements-backend.txt
+uvicorn backend.main:app --reload --reload-dir backend --reload-dir physics
+
+# Frontend (Vite + React + TypeScript) — http://localhost:5173
+cd frontend
+npm install
+npm run dev
 ```
+
+The previous Streamlit app is retired but kept for reference at
+`app/main_streamlit_archived.py` (`streamlit run app/main_streamlit_archived.py`, using
+`pip install -r requirements.txt`) — it is not the maintained UI.
 
 ## Project structure
 
 ```
 fourier_optics_sim/
+├── backend/
+│   └── main.py                # FastAPI app (current live UI backend)
+├── frontend/                  # Vite + React + TypeScript app (current live UI)
+│   └── src/App.tsx
 ├── app/
-│   └── main.py               # Streamlit app (the final product)
+│   └── main_streamlit_archived.py   # Retired Streamlit app, kept for reference
 ├── physics/
-│   ├── masks.py              # Grid + binary mask patterns          ✅ Week 1
-│   ├── fft_engine.py         # FFT helpers, physical freq axis      🔜 Week 6
-│   ├── propagation.py        # Angular spectrum propagator          🔜 Week 7
-│   ├── diffraction.py        # Fraunhofer diffraction               🔜 Week 8
-│   ├── lens.py               # Lens as Fourier transformer          🔜 Week 9
-│   ├── imaging.py            # ATF/OTF imaging models               🔜 Week 10
-│   └── pupil.py              # Generalized pupil + aberrations      🔜 Week 11
+│   ├── masks.py               # Grid + binary mask patterns          ✅ Week 1
+│   ├── fft_engine.py          # FFT helpers, physical freq axis      ✅ Week 6
+│   ├── propagation.py         # Angular spectrum propagator          ✅ Week 7
+│   ├── diffraction.py         # Fraunhofer diffraction               ✅ Week 8
+│   ├── lens.py                # Lens as Fourier transformer          ✅ Week 9
+│   ├── imaging.py             # ATF/OTF imaging models               ✅ Week 10
+│   └── aberrations.py         # Defocus wavefront + generalized pupil ✅ Week 11
 ├── plotting/
-│   └── core.py               # Reusable 4-panel plotting scaffold   ✅ Week 1
+│   └── core.py                # Matplotlib scaffold for scripts/generate_*.py PNGs
 ├── docs/
 │   └── physics_assumptions.md
-├── requirements.txt
+├── requirements.txt           # physics/ + tests/ + scripts/ (matplotlib, no web framework)
+├── requirements-backend.txt   # backend/ (fastapi, uvicorn, numpy)
 └── README.md
 ```
 
@@ -54,8 +71,12 @@ fourier_optics_sim/
 | 8 | Fraunhofer diffraction, pattern library | `diffraction.py` | Far-field diffraction viewer |
 | 9 | Lens as FT, coherent imaging, NA pupil | `lens.py` | **Aerial image panel** |
 | 10 | ATF vs OTF, thresholding, print error | `imaging.py` | **Printed feature panel** |
-| 11 | Aberrations, focus error | `pupil.py` | Focus error sweep |
+| 11 | Aberrations, focus error | `aberrations.py` | Focus error sweep |
 | 12 | OPC correction loop | (in app) | **OPC correction panel** |
+
+App features from Weeks 9–11 (aerial image, printed feature, ATF/OTF, focus error) were built
+and verified against `app/main_streamlit_archived.py` (Streamlit); porting them to
+`frontend/`/`backend/` is in progress and not yet complete as of the React/FastAPI migration.
 
 ## Physics reference
 

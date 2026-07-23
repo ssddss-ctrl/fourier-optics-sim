@@ -297,7 +297,8 @@ def pupil_function_freq(grid, NA: float = NA_DEFAULT, wavelength: float = WAVELE
 
 
 def coherent_aerial_image(mask: np.ndarray, grid, wavelength: float = WAVELENGTH,
-                           NA: float = NA_DEFAULT) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                           NA: float = NA_DEFAULT,
+                           defocus_waves: float = 0.0) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Full forward coherent imaging chain: mask -> band-limited spectrum
     (lens Fourier transform + pupil cutoff) -> aerial image intensity.
@@ -363,12 +364,31 @@ def coherent_aerial_image(mask: np.ndarray, grid, wavelength: float = WAVELENGTH
       pitch equal to an integer number of samples, i.e.
       pitch = k * grid.dx for integer k.)
 
+    DEFOCUS (Week 11, aberrations.py -- reused, not reimplemented)
+    -------------------------------------------------------------------
+    When defocus_waves is nonzero, P above is replaced by the same
+    generalized (phase-carrying) pupil imaging.amplitude_point_spread_function
+    already builds for the incoherent/OTF path -- imported locally inside
+    this function (not at module top) specifically to avoid a circular
+    import: imaging.py imports pupil_function_freq from this module at ITS
+    top level, so lens.py importing back from imaging.py at ITS top level
+    would deadlock the two modules against each other. A local import
+    inside the function body sidesteps that entirely, since by the time
+    this function is actually called, both modules are already fully
+    loaded regardless of which one a caller imported first. defocus_waves
+    =0.0 skips this branch entirely, so P is exactly pupil_function_freq's
+    own output with no dtype/value change -- the Week 9 unaberrated
+    behavior is a strict special case, not a separately maintained code
+    path.
+
     Parameters
     ----------
-    mask       : ndarray, shape (N,) — mask transmission (0/1), on grid.x
-    grid       : Grid1D — mask's spatial/frequency grid (from grid.py)
-    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
-    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    mask          : ndarray, shape (N,) — mask transmission (0/1), on grid.x
+    grid          : Grid1D — mask's spatial/frequency grid (from grid.py)
+    wavelength    : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA            : float — numerical aperture (defaults to constants.NA_DEFAULT)
+    defocus_waves : float — peak defocus wavefront error, in units of
+                    wavelength (0.0 = no aberration, matches Week 9 exactly)
 
     Returns
     -------
@@ -383,12 +403,19 @@ def coherent_aerial_image(mask: np.ndarray, grid, wavelength: float = WAVELENGTH
                    original mask, which is already a valid intensity in
                    [0, 1], and forcing a peak-normalization would silently
                    hide any amplitude bug that broke that limiting case)
-    P           : ndarray, shape (N,) — the frequency-domain pupil mask
-                   actually applied (0/1), returned so callers/plots can
-                   show exactly what was cut, without recomputing it
+    P           : ndarray, shape (N,) — the frequency-domain pupil actually
+                   applied: the bare 0/1 pupil when defocus_waves=0.0, or
+                   the complex generalized pupil otherwise, returned so
+                   callers/plots can show exactly what was applied without
+                   recomputing it
     """
     G_raw = fft1d(mask, grid.dx)
-    P = pupil_function_freq(grid, NA=NA, wavelength=wavelength)
+    if defocus_waves != 0.0:
+        from imaging import amplitude_point_spread_function
+        _, P = amplitude_point_spread_function(grid, wavelength=wavelength, NA=NA,
+                                                defocus_waves=defocus_waves)
+    else:
+        P = pupil_function_freq(grid, NA=NA, wavelength=wavelength)
     G_filtered = G_raw * P
     field_image = ifft1d(G_filtered, grid.dx)
     intensity = np.abs(field_image) ** 2

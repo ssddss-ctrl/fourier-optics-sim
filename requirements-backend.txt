@@ -1,0 +1,8 @@
+# Backend (FastAPI) requirements. Separate from requirements.txt (the
+# retired Streamlit app's deps: streamlit, plotly, matplotlib -- none of
+# which physics/ itself needs) so the backend's dependency footprint is
+# just the API server plus whatever physics/ actually imports (numpy only
+# -- confirmed via `grep -rh "^import \|^from " physics/*.py`).
+fastapi>=0.115
+uvicorn[standard]>=0.30
+numpy>=1.24
