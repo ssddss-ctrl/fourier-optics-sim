@@ -14,14 +14,17 @@
     "@react-three/fiber": "^8.18.0",
     "@tailwindcss/vite": "^4.3.3",
     "framer-motion": "^12.42.2",
+    "plotly.js": "^3.7.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
+    "react-plotly.js": "^4.0.0",
     "react-router-dom": "^7.18.1",
     "tailwindcss": "^4.3.3",
     "three": "^0.180.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
+    "@types/plotly.js": "^3.0.10",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
