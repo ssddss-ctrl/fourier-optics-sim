@@ -52,6 +52,8 @@ export interface PrintedFeatureRequest extends AerialImageRequest {
   threshold?: number;
 }
 
+export type SpectrumPipelineRequest = AerialImageRequest;
+
 // ── Response types ───────────────────────────────────────────────────────────
 
 export interface MaskResponse {
@@ -88,6 +90,15 @@ export interface PrintedFeatureResponse {
   linewidth_error: number | null;
   epe_warning: string | null;
   linewidth_warning: string | null;
+}
+
+export interface SpectrumPipelineResponse {
+  x: number[];
+  mask: number[];
+  fx: number[];
+  mask_spectrum_magnitude: number[];
+  filtered_spectrum_magnitude: number[];
+  aerial_intensity: number[];
 }
 
 export interface HealthResponse {
@@ -145,4 +156,8 @@ export function getAtfOtf(req: AtfOtfRequest = {}): Promise<AtfOtfResponse> {
 
 export function getPrintedFeature(req: PrintedFeatureRequest = {}): Promise<PrintedFeatureResponse> {
   return postJson("/api/printed-feature", req);
+}
+
+export function getSpectrumPipeline(req: SpectrumPipelineRequest = {}): Promise<SpectrumPipelineResponse> {
+  return postJson("/api/spectrum-pipeline", req);
 }

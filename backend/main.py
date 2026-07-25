@@ -64,6 +64,8 @@ from .schemas import (
     AerialImageResponse,
     PrintedFeatureRequest,
     PrintedFeatureResponse,
+    SpectrumPipelineRequest,
+    SpectrumPipelineResponse,
 )
 from . import simulator
 
@@ -117,3 +119,8 @@ def api_atf_otf(req: AtfOtfRequest) -> dict:
 @app.post("/api/printed-feature", response_model=PrintedFeatureResponse)
 def api_printed_feature(req: PrintedFeatureRequest) -> dict:
     return simulator.compute_printed_feature(req)
+
+
+@app.post("/api/spectrum-pipeline", response_model=SpectrumPipelineResponse)
+def api_spectrum_pipeline(req: SpectrumPipelineRequest) -> dict:
+    return simulator.compute_spectrum_pipeline(req)

@@ -4,10 +4,18 @@ backend/schemas.py
 Pydantic request/response models for the FastAPI endpoints in backend/main.py.
 
 These describe the HTTP contract only -- no physics/ imports here, and no
-computation. Field defaults mirror app/main_streamlit_archived.py's widget
-defaults exactly (wavelength_nm=193.0, NA=0.75, threshold=0.3, L=10.0,
-N=1024, feature_width=1.0, pitch=2.0, duty_cycle=0.5) so a client that omits
-a field gets the same starting point the old Streamlit sidebar did.
+computation. Most field defaults mirror app/main_streamlit_archived.py's
+widget defaults exactly (wavelength_nm=193.0, NA=0.75, threshold=0.3,
+L=10.0, N=1024, feature_width=1.0, pitch=2.0, duty_cycle=0.5) so a client
+that omits a field gets the same starting point the old Streamlit sidebar
+did. `defocus_waves` is the one deliberate exception: 0.0 (the Streamlit
+app's actual default) gives a "Good" match out of the box across every
+reasonable NA/wavelength/width combination on the frontend's own
+classifyMatch thresholds, leaving no room for a first-time user to learn
+anything by tuning. 0.8 waves instead gives a clean, recoverable "Decent"
+result -- fixable via the frontend's Advanced options panel -- so this
+field's default is mirrored to the frontend's own initial state
+(frontend/src/pages/Simulator.tsx) rather than the archived app's widget.
 """
 
 from typing import List, Literal, Optional
@@ -35,7 +43,7 @@ class MaskParams(GridParams):
 class OpticalParams(BaseModel):
     wavelength_nm: float = Field(193.0, gt=0, description="Wavelength, nm (converted to µm before calling physics/)")
     NA: float = Field(0.75, gt=0, description="Numerical aperture")
-    defocus_waves: float = Field(0.0, description="Peak defocus wavefront error, in units of wavelength")
+    defocus_waves: float = Field(0.8, description="Peak defocus wavefront error, in units of wavelength")
 
 
 # ── Request models ───────────────────────────────────────────────────────────
@@ -54,6 +62,10 @@ class AerialImageRequest(MaskParams, OpticalParams):
 
 class PrintedFeatureRequest(AerialImageRequest):
     threshold: float = Field(0.3, gt=0, lt=1, description="Resist threshold, fraction of clear-field intensity")
+
+
+class SpectrumPipelineRequest(AerialImageRequest):
+    pass
 
 
 # ── Response models ──────────────────────────────────────────────────────────
@@ -92,3 +104,12 @@ class PrintedFeatureResponse(BaseModel):
     linewidth_error: Optional[float] = None
     epe_warning: Optional[str] = None
     linewidth_warning: Optional[str] = None
+
+
+class SpectrumPipelineResponse(BaseModel):
+    x: List[float]
+    mask: List[float]
+    fx: List[float]
+    mask_spectrum_magnitude: List[float]
+    filtered_spectrum_magnitude: List[float]
+    aerial_intensity: List[float]

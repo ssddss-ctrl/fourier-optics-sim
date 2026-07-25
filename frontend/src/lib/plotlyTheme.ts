@@ -44,7 +44,7 @@ export const PRIMARY_FILL = hexToRgba(PRIMARY_COLOR, 0.25);
 export const TARGET_FILL = hexToRgba(TARGET_COLOR, 0.3);
 
 const axisTemplate: Partial<Layout["xaxis"]> = {
-  gridcolor: GRIDLINE_COLOR,
+  showgrid: false,
   zerolinecolor: AXIS_LINE_COLOR,
   linecolor: AXIS_LINE_COLOR,
   tickfont: { color: MUTED_INK, size: 10 },

@@ -34,6 +34,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_REPO_ROOT))
 sys.path.insert(0, str(_REPO_ROOT / "physics"))
 
+from fft_engine import fft1d
 from grid import Grid1D
 from masks import single_line, line_space_grating
 from lens import coherent_aerial_image, cutoff_frequency
@@ -45,7 +46,13 @@ from imaging import (
     linewidth_error,
 )
 
-from .schemas import MaskRequest, AtfOtfRequest, AerialImageRequest, PrintedFeatureRequest
+from .schemas import (
+    MaskRequest,
+    AtfOtfRequest,
+    AerialImageRequest,
+    PrintedFeatureRequest,
+    SpectrumPipelineRequest,
+)
 
 
 # ── numpy -> plain-Python conversion (FastAPI/Pydantic can't serialize
@@ -209,3 +216,35 @@ def compute_printed_feature(req: PrintedFeatureRequest) -> dict:
         )
 
     return result
+
+
+def compute_spectrum_pipeline(req: SpectrumPipelineRequest) -> dict:
+    """
+    Mask -> spectrum -> pupil-filtered spectrum -> aerial image, all four
+    stages returned together so a UI can show the coherent Fourier-optics
+    chain (Eq. 6-20's frequency-domain picture) side by side with its
+    spatial-domain endpoints. Reuses coherent_aerial_image purely to get
+    back the exact pupil P it already computes internally (including the
+    defocus_waves != 0.0 generalized-pupil branch, lens.py lines 412-419)
+    rather than re-deriving that branch here. The final aerial_intensity
+    still goes through _aerial_image_intensity so it matches whatever
+    coherence mode the request specifies, same as /api/aerial-image.
+    """
+    grid, x, mask, _ = build_mask(req)
+    wavelength = req.wavelength_nm / 1000.0
+
+    mask_spectrum = fft1d(mask, grid.dx)
+    _, _, P = coherent_aerial_image(mask, grid, wavelength=wavelength, NA=req.NA,
+                                     defocus_waves=req.defocus_waves)
+    filtered_spectrum = mask_spectrum * P
+
+    aerial_intensity = _aerial_image_intensity(req, grid, mask)
+
+    return {
+        "x": to_json_list(x),
+        "mask": to_json_list(mask),
+        "fx": to_json_list(grid.f),
+        "mask_spectrum_magnitude": to_json_list(np.abs(mask_spectrum)),
+        "filtered_spectrum_magnitude": to_json_list(np.abs(filtered_spectrum)),
+        "aerial_intensity": to_json_list(aerial_intensity),
+    }
