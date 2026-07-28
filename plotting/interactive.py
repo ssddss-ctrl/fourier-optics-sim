@@ -1,23 +1,30 @@
 """
 plotting/interactive.py
 --------------------------
-Shared Plotly dark theme for app/main.py's live, hover-enabled charts.
+Shared Plotly dark theme for the (now archived) Streamlit app's live,
+hover-enabled charts (app/main_streamlit_archived.py, run via
+`streamlit run app/main_streamlit_archived.py`). Since the Week 11/12
+React+FastAPI migration, the live app's own copy of this theme lives in
+frontend/src/lib/plotlyTheme.ts (ported by hand, same colors/validation --
+see that file's docstring) -- this module is no longer imported by the
+current frontend/backend, only by the archived Streamlit file kept for
+reference.
 
 Parallel to plotting/core.py (matplotlib), NOT a replacement for it:
 plotting/core.py and every scripts/generate_*.py file keep using matplotlib
 exactly as before, for the static PNGs that go into the build log. This
-module is consumed ONLY by app/main.py, for the panels a user actually
-interacts with in the browser (Aerial Image, Printed Feature vs. Target,
-ATF/OTF) -- the reason to prefer Plotly there and nowhere else is hover
-tooltips on live data, which a static PNG has no use for.
+module was consumed ONLY by the Streamlit app, for the panels a user
+actually interacts with in the browser (Aerial Image, Printed Feature vs.
+Target, ATF/OTF) -- the reason to prefer Plotly there and nowhere else is
+hover tooltips on live data, which a static PNG has no use for.
 
 WHY A REGISTERED PLOTLY TEMPLATE, NOT A PER-FIGURE STYLING FUNCTION
 ------------------------------------------------------------------------
 plotting/core.py's _style_ax is a function called once per matplotlib Axes,
 because matplotlib has no first-class "shared theme" object. Plotly does
 (go.layout.Template): defining one here and registering it with
-plotly.io once means every fig = go.Figure() constructed in app/main.py
-picks up the dark background, font, gridlines, and axis-line color
+plotly.io once means every fig = go.Figure() constructed in the Streamlit
+app picks up the dark background, font, gridlines, and axis-line color
 automatically (set as pio.templates.default), the same way every matplotlib
 panel in this project already shares plotting/core.py's SPINE_COLOR/
 _style_ax. Panel-specific titles/labels are still set per figure; only the

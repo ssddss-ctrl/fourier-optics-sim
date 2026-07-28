@@ -68,6 +68,12 @@ class SpectrumPipelineRequest(AerialImageRequest):
     pass
 
 
+class OpcRequest(PrintedFeatureRequest):
+    gain: float = Field(0.5, gt=0, description="Edge-bias damping factor per iteration (gain<1 for stability)")
+    convergence_tol: float = Field(0.01, gt=0, description="Convergence threshold on |EPE|, µm")
+    max_iterations: int = Field(20, gt=0, description="Hard cap on forward-model passes")
+
+
 # ── Response models ──────────────────────────────────────────────────────────
 
 class MaskResponse(BaseModel):
@@ -113,3 +119,26 @@ class SpectrumPipelineResponse(BaseModel):
     mask_spectrum_magnitude: List[float]
     filtered_spectrum_magnitude: List[float]
     aerial_intensity: List[float]
+
+
+class OpcIterationSummary(BaseModel):
+    iteration: int
+    max_abs_epe: Optional[float]  # null if every edge in this pass failed to print
+    mean_abs_epe: Optional[float]
+
+
+class OpcResponse(BaseModel):
+    x: List[float]
+    target: List[float]
+    naive_printed: List[float]
+    corrected_mask: List[float]
+    corrected_printed: List[float]
+    naive_epe: List[Optional[float]]
+    corrected_epe: List[Optional[float]]
+    naive_max_abs_epe: Optional[float]
+    naive_mean_abs_epe: Optional[float]
+    corrected_max_abs_epe: Optional[float]
+    corrected_mean_abs_epe: Optional[float]
+    history: List[OpcIterationSummary]
+    n_iterations: int
+    converged: bool

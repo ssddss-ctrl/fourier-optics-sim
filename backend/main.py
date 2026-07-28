@@ -33,14 +33,17 @@ GET /health -- see README for the exact command.
 
 SIMULATOR ENDPOINTS (backend/schemas.py + backend/simulator.py)
 ------------------------------------------------------------------------
-The four POST endpoints below wrap physics/ for the simulator page,
-mirroring exactly what app/main_streamlit_archived.py computes (same
-default parameter values, same pattern_type/coherence branching, same
-EPE/linewidth-error edge cases) -- physics/ itself is not modified, only
+The POST endpoints below wrap physics/ for the simulator page, mirroring
+exactly what app/main_streamlit_archived.py computes (same default
+parameter values, same pattern_type/coherence branching, same EPE/
+linewidth-error edge cases) -- physics/ itself is not modified, only
 called through. All request/response validation is Pydantic
 (backend/schemas.py); all the actual physics/-calling logic is in
 backend/simulator.py, kept separate from this file so it can be
 unit-tested directly without going through HTTP (see tests/test_api.py).
+/api/opc (Week 12) is the one exception to "mirrors the archived Streamlit
+app": that app never had an OPC panel, so this endpoint's shape was
+designed fresh against physics/opc.py, not ported from anywhere.
 """
 
 import sys
@@ -66,6 +69,8 @@ from .schemas import (
     PrintedFeatureResponse,
     SpectrumPipelineRequest,
     SpectrumPipelineResponse,
+    OpcRequest,
+    OpcResponse,
 )
 from . import simulator
 
@@ -124,3 +129,8 @@ def api_printed_feature(req: PrintedFeatureRequest) -> dict:
 @app.post("/api/spectrum-pipeline", response_model=SpectrumPipelineResponse)
 def api_spectrum_pipeline(req: SpectrumPipelineRequest) -> dict:
     return simulator.compute_spectrum_pipeline(req)
+
+
+@app.post("/api/opc", response_model=OpcResponse)
+def api_opc(req: OpcRequest) -> dict:
+    return simulator.compute_opc(req)

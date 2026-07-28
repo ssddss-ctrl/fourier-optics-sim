@@ -45,6 +45,7 @@ from imaging import (
     edge_placement_error,
     linewidth_error,
 )
+from opc import edge_bias_opc
 
 from .schemas import (
     MaskRequest,
@@ -52,6 +53,7 @@ from .schemas import (
     AerialImageRequest,
     PrintedFeatureRequest,
     SpectrumPipelineRequest,
+    OpcRequest,
 )
 
 
@@ -247,4 +249,51 @@ def compute_spectrum_pipeline(req: SpectrumPipelineRequest) -> dict:
         "mask_spectrum_magnitude": to_json_list(np.abs(mask_spectrum)),
         "filtered_spectrum_magnitude": to_json_list(np.abs(filtered_spectrum)),
         "aerial_intensity": to_json_list(aerial_intensity),
+    }
+
+
+def compute_opc(req: OpcRequest) -> dict:
+    """
+    Wraps physics/opc.py's edge_bias_opc exactly as the other compute_*
+    functions wrap their physics/ call: build the Grid1D/mask, call straight
+    through, convert numpy -> JSON-safe plain Python. `target` doubles as
+    both the OPC loop's input and its own /api/mask-equivalent output, so a
+    caller gets a fully self-contained before/after artifact from one
+    request (naive_printed/naive_epe vs. corrected_mask/corrected_printed/
+    corrected_epe) without a second round trip.
+    """
+    grid, x, _, target = build_mask(req)
+    wavelength = req.wavelength_nm / 1000.0
+
+    result = edge_bias_opc(
+        target, grid, wavelength=wavelength, NA=req.NA, defocus_waves=req.defocus_waves,
+        coherence=req.coherence, threshold=req.threshold, gain=req.gain,
+        convergence_tol=req.convergence_tol, max_iterations=req.max_iterations,
+    )
+
+    naive_summary = result["history"][0]
+    corrected_summary = result["history"][-1]
+
+    return {
+        "x": to_json_list(x),
+        "target": to_json_list(target),
+        "naive_printed": to_json_list(result["naive_printed"]),
+        "corrected_mask": to_json_list(result["corrected_mask"]),
+        "corrected_printed": to_json_list(result["corrected_printed"]),
+        "naive_epe": to_json_list(result["naive_epe"]),
+        "corrected_epe": to_json_list(corrected_summary["epe"]),
+        "naive_max_abs_epe": to_json_float(naive_summary["max_abs_epe"]),
+        "naive_mean_abs_epe": to_json_float(naive_summary["mean_abs_epe"]),
+        "corrected_max_abs_epe": to_json_float(corrected_summary["max_abs_epe"]),
+        "corrected_mean_abs_epe": to_json_float(corrected_summary["mean_abs_epe"]),
+        "history": [
+            {
+                "iteration": h["iteration"],
+                "max_abs_epe": to_json_float(h["max_abs_epe"]),
+                "mean_abs_epe": to_json_float(h["mean_abs_epe"]),
+            }
+            for h in result["history"]
+        ],
+        "n_iterations": result["n_iterations"],
+        "converged": result["converged"],
     }

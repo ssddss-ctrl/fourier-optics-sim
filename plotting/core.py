@@ -11,13 +11,19 @@ The three panels shown here describe the mask DESIGN side of the pipeline:
 This used to be a 4-panel scaffold with a 4th "Aerial Image" quadrant that
 was a locked placeholder from Week 1 through Week 9. As of Week 10, the
 actual aerial image (coherent or incoherent, live) and the printed-feature/
-EPE comparison are their own dedicated panels in app/main.py (using
-physics/lens.py and physics/imaging.py directly) -- they show what the
-optical SYSTEM does to the mask, which is a conceptually different thing
-from this module's job of showing what was DESIGNED. Keeping a 4th
-"Aerial Image" quadrant here after that panel existed elsewhere would just
-duplicate it (or worse, show a stale copy), so it was dropped rather than
-wired up twice.
+EPE comparison became their own dedicated live panels -- originally in the
+Streamlit app (now archived at app/main_streamlit_archived.py), and since
+the Week 11/12 React+FastAPI migration, in frontend/src/components/
+simulator/SectionResults.tsx (using physics/lens.py and physics/imaging.py
+via backend/, not matplotlib) -- they show what the optical SYSTEM does to
+the mask, which is a conceptually different thing from this module's job
+of showing what was DESIGNED. Keeping a 4th "Aerial Image" quadrant here
+after that panel existed elsewhere would just duplicate it (or worse, show
+a stale copy), so it was dropped rather than wired up twice. This module
+itself is now consumed only by scripts/generate_*.py for the static
+build-log PNGs (plotting/interactive.py is the archived Streamlit app's
+Plotly theme, ported to frontend/src/lib/plotlyTheme.ts for the live app --
+neither plotting module is used by the current frontend/backend directly).
 
 All spatial units: µm
 All frequency units: cycles/µm (µm⁻¹)
@@ -39,8 +45,11 @@ from matplotlib.axes import Axes
 MASK_COLOR    = "#2C3E50"   # dark blue-grey for mask bars
 TARGET_COLOR  = "#E74C3C"   # red for target/desired pattern
 SPECTRUM_COLOR = "#2980B9"  # blue for spectrum magnitude
-IMAGE_COLOR   = "#27AE60"   # green for aerial image intensity (used by
-                             # app/main.py's own live Aerial Image panel)
+IMAGE_COLOR   = "#27AE60"   # green for aerial image intensity (historical --
+                             # used by the archived Streamlit app's live
+                             # Aerial Image panel; the current React/Plotly
+                             # app has its own separately-validated green
+                             # (PHASE_COLOR in lib/plotlyTheme.ts) instead)
 SPINE_COLOR   = "#B0B4B8"   # soft grey for the remaining axis spines
 
 
@@ -78,8 +87,8 @@ def three_panel_plot(
     (Formerly a 2x2 "four_panel_plot" with a 4th Aerial Image quadrant
     that was a locked placeholder from Week 1 through Week 9. Renamed and
     the 4th quadrant dropped in Week 10, once the real aerial image /
-    printed-feature panels existed as their own live panels in
-    app/main.py -- see this module's docstring.)
+    printed-feature panels existed as their own live panels elsewhere --
+    see this module's docstring.)
 
     Parameters
     ----------

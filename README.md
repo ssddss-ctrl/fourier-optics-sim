@@ -39,9 +39,14 @@ The previous Streamlit app is retired but kept for reference at
 ```
 fourier_optics_sim/
 ├── backend/
-│   └── main.py                # FastAPI app (current live UI backend)
-├── frontend/                  # Vite + React + TypeScript app (current live UI)
-│   └── src/App.tsx
+│   ├── main.py                # FastAPI app (live UI backend): 6 POST endpoints + /health
+│   ├── schemas.py              # Pydantic request/response models
+│   └── simulator.py            # physics/-calling logic, unit-tested independent of HTTP
+├── frontend/                  # Vite + React + TypeScript app (live UI)
+│   └── src/
+│       ├── pages/Landing.tsx        # Animated hologram landing page
+│       ├── pages/Simulator.tsx      # Fixed-viewport 4-page pager
+│       └── components/simulator/    # Mask/tune/optics/results sections + OPC panel
 ├── app/
 │   └── main_streamlit_archived.py   # Retired Streamlit app, kept for reference
 ├── physics/
@@ -51,9 +56,13 @@ fourier_optics_sim/
 │   ├── diffraction.py         # Fraunhofer diffraction               ✅ Week 8
 │   ├── lens.py                # Lens as Fourier transformer          ✅ Week 9
 │   ├── imaging.py             # ATF/OTF imaging models               ✅ Week 10
-│   └── aberrations.py         # Defocus wavefront + generalized pupil ✅ Week 11
+│   ├── aberrations.py         # Defocus wavefront + generalized pupil ✅ Week 11
+│   └── opc.py                 # Edge-bias OPC correction loop        ✅ Week 12
 ├── plotting/
-│   └── core.py                # Matplotlib scaffold for scripts/generate_*.py PNGs
+│   ├── core.py                 # Matplotlib scaffold for scripts/generate_*.py PNGs
+│   └── interactive.py          # Plotly dark theme (ported to frontend/src/lib/plotlyTheme.ts)
+├── notebooks/
+│   └── opc_demo.ipynb          # Naive mask -> distorted print -> OPC -> corrected print
 ├── docs/
 │   └── physics_assumptions.md
 ├── requirements.txt           # physics/ + tests/ + scripts/ (matplotlib, no web framework)
@@ -72,11 +81,10 @@ fourier_optics_sim/
 | 9 | Lens as FT, coherent imaging, NA pupil | `lens.py` | **Aerial image panel** |
 | 10 | ATF vs OTF, thresholding, print error | `imaging.py` | **Printed feature panel** |
 | 11 | Aberrations, focus error | `aberrations.py` | Focus error sweep |
-| 12 | OPC correction loop | (in app) | **OPC correction panel** |
+| 12 | OPC correction loop | `opc.py` | **OPC correction panel** |
 
-App features from Weeks 9–11 (aerial image, printed feature, ATF/OTF, focus error) were built
-and verified against `app/main_streamlit_archived.py` (Streamlit); porting them to
-`frontend/`/`backend/` is in progress and not yet complete as of the React/FastAPI migration.
+Every module above is implemented and live in `frontend/`/`backend/` (the React/FastAPI app) —
+there is no remaining pipeline stage still only in the archived Streamlit app.
 
 ## Physics reference
 

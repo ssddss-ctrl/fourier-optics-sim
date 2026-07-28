@@ -28,6 +28,7 @@ from imaging import (
     edge_placement_error,
     linewidth_error,
 )
+from opc import edge_bias_opc
 
 from backend.main import app
 
@@ -222,6 +223,53 @@ def test_printed_feature_severe_defocus_fails_to_print():
     )
     assert body["max_abs_epe"] is None
     assert all(v is None for v in body["epe"])
+
+
+# ── /api/opc ───────────────────────────────────────────────────────────────
+
+def test_opc_matches_direct_call():
+    resp = client.post("/api/opc", json={
+        "feature_width": FEATURE_WIDTH, "L": L, "N": N,
+        "wavelength_nm": WAVELENGTH_NM, "NA": NA, "coherence": "Incoherent",
+        "defocus_waves": 0.0, "threshold": 0.3,
+        "gain": 0.5, "convergence_tol": 0.01, "max_iterations": 20,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    grid = Grid1D(L=L, N=N)
+    target = single_line(grid.x, width=FEATURE_WIDTH)
+    expected = edge_bias_opc(target, grid, wavelength=WAVELENGTH_UM, NA=NA,
+                              coherence="Incoherent", threshold=0.3,
+                              gain=0.5, convergence_tol=0.01, max_iterations=20)
+
+    _assert_close_lists(body["target"], target.tolist())
+    _assert_close_lists(body["naive_printed"], expected["naive_printed"].tolist())
+    _assert_close_lists(body["corrected_mask"], expected["corrected_mask"].tolist())
+    _assert_close_lists(body["corrected_printed"], expected["corrected_printed"].tolist())
+    _assert_close_lists(body["naive_epe"], expected["naive_epe"].tolist())
+    _assert_close_lists(body["corrected_epe"], expected["history"][-1]["epe"].tolist())
+    assert body["n_iterations"] == expected["n_iterations"]
+    assert body["converged"] == expected["converged"]
+    assert len(body["history"]) == len(expected["history"])
+    for entry, expected_entry in zip(body["history"], expected["history"]):
+        assert entry["iteration"] == expected_entry["iteration"]
+        assert entry["max_abs_epe"] == pytest.approx(expected_entry["max_abs_epe"], nan_ok=True)
+        assert entry["mean_abs_epe"] == pytest.approx(expected_entry["mean_abs_epe"], nan_ok=True)
+
+
+def test_opc_reports_improvement_for_correctable_feature():
+    resp = client.post("/api/opc", json={
+        "feature_width": 1.0, "L": L, "N": N,
+        "wavelength_nm": WAVELENGTH_NM, "NA": NA, "coherence": "Incoherent",
+        "defocus_waves": 0.0, "threshold": 0.3,
+        "gain": 0.5, "convergence_tol": 0.01, "max_iterations": 20,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    assert body["converged"] is True
+    assert body["corrected_max_abs_epe"] <= body["naive_max_abs_epe"]
 
 
 # ── Response validation (Pydantic / numpy-to-JSON conversion) ────────────────

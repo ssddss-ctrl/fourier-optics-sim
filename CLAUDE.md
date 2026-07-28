@@ -74,19 +74,27 @@ maintained UI — see "Frontend/backend split" below.
    from `lens.py`'s ATF/pupil, not reimplemented), intensity thresholding (`apply_threshold`),
    and print-fidelity metrics (`edge_placement_error`, `linewidth_error`). Thresholding/EPE are
    lithography-engineering conventions, not Goodman equations — flagged as such in-module.
-8. **`physics/constants.py`** — project-wide `WAVELENGTH`/`NA_DEFAULT` defaults only; every
+8. **`physics/opc.py`** — the iterative edge-bias OPC (optical proximity correction) loop:
+   forward-models a mask through `lens.py`/`imaging.py`'s existing coherent/incoherent path,
+   measures per-edge EPE (`imaging.edge_placement_error`, reused not reimplemented) against the
+   target, and biases mask edges opposite the error, damped by a gain factor, until convergence
+   or `max_iterations`. Goodman 6.6.1 (resolution limits) motivates *why* correction is needed;
+   the correction algorithm itself is lithography engineering practice, flagged as such in-module.
+   Last stage of the pipeline — the first stage that needs every prior stage already built.
+9. **`physics/constants.py`** — project-wide `WAVELENGTH`/`NA_DEFAULT` defaults only; every
    consumer still takes wavelength/NA as explicit optional parameters (no hidden physical
    constants inside function bodies).
-9. **`plotting/core.py`** — the shared 3-panel (target/mask/spectrum) figure scaffold
-   (`three_panel_plot`) plus shared style constants (`MASK_COLOR`, `TARGET_COLOR`,
-   `SPECTRUM_COLOR`, `IMAGE_COLOR`, `_style_ax`), used only by `scripts/generate_*.py` for the
-   static build-log PNGs now (see "Frontend/backend split" below for the live UI).
-10. **`backend/main.py`** — FastAPI app; the current live consumer of the full pipeline
-    end-to-end (replaces `app/main_streamlit_archived.py` in that role).
+10. **`plotting/core.py`** — the shared 3-panel (target/mask/spectrum) figure scaffold
+    (`three_panel_plot`) plus shared style constants (`MASK_COLOR`, `TARGET_COLOR`,
+    `SPECTRUM_COLOR`, `IMAGE_COLOR`, `_style_ax`), used only by `scripts/generate_*.py` for the
+    static build-log PNGs (see "Frontend/backend split" below for the live UI).
+11. **`backend/main.py`** — FastAPI app; the live consumer of the full pipeline end-to-end
+    (mask, ATF/OTF, aerial image, printed feature, spectrum pipeline, and OPC), replacing
+    `app/main_streamlit_archived.py` in that role.
 
-Not yet implemented: the OPC correction loop (Week 12) — referenced as locked/upcoming in
-`backend/`/`frontend/` and `README.md`. Aberrations (Week 11) are implemented in
-`physics/aberrations.py`, not `physics/pupil.py` as originally planned.
+Aberrations (Week 11) are implemented in `physics/aberrations.py`, not `physics/pupil.py` as
+originally planned. The full build plan (see `README.md`) is implemented through Week 12 (OPC)
+— there is no remaining "not yet built" pipeline stage.
 
 ### Frontend/backend split (replaces the Streamlit app)
 
@@ -96,12 +104,20 @@ reference only, not maintained) and replaced by:
 - **`backend/`** — a FastAPI app (`backend/main.py`) that imports `physics/` directly (no
   `plotting/`, no matplotlib/plotly — those were UI-layer concerns of the old Streamlit app).
   `requirements-backend.txt` covers its dependencies (`fastapi`, `uvicorn`, `numpy`) separately
-  from `requirements.txt`, which now only serves `physics/`/`tests/`/`scripts/`.
+  from `requirements.txt`, which now only serves `physics/`/`tests/`/`scripts/`. Six POST
+  endpoints (`/api/mask`, `/api/aerial-image`, `/api/atf-otf`, `/api/printed-feature`,
+  `/api/spectrum-pipeline`, `/api/opc`) plus `/health`; request/response validation lives in
+  `backend/schemas.py`, the actual physics/-calling logic in `backend/simulator.py` (kept
+  separate so it's unit-testable without going through HTTP — see `tests/test_api.py`).
 - **`frontend/`** — a Vite + React + TypeScript app (`react-router-dom`, `three` /
-  `@react-three/fiber` / `@react-three/drei`, `framer-motion`, `tailwindcss`) that will call the
-  FastAPI backend once its computation endpoints exist. As of this migration it's a barebones
-  scaffold (a placeholder route) — no aerial-image/ATF-OTF panels have been ported from the
-  Streamlit app yet.
+  `@react-three/fiber` / `@react-three/drei`, `framer-motion`, `tailwindcss`). `pages/Landing.tsx`
+  is the animated hologram landing page; `pages/Simulator.tsx` is a fixed-viewport, four-page
+  pager (mask choice → tune feature → optical system → results) built from
+  `components/simulator/Section*.tsx`. The Results page renders the mask/ATF/OTF/aerial-image/
+  printed-feature panels (Plotly, dark theme ported to `lib/plotlyTheme.ts`) plus an OPC
+  before/after comparison panel (Week 12) behind an "Advanced" toggle, all live-wired to the
+  FastAPI backend via `lib/api.ts` (debounced per `lib/hooks.ts`'s `useApiPanel`/
+  `useDebouncedValue`). Nothing here is a placeholder or stub.
 
 `physics/` itself did not change for this migration — the split is purely about how the UI talks
 to it (HTTP/JSON via FastAPI instead of direct Python calls inside a Streamlit script rerun).
@@ -140,8 +156,8 @@ on every request.
 
 - Spatial coordinates: **µm**
 - Spatial frequencies: **cycles/µm (µm⁻¹)**
-- Wavelength: **µm** (`app/main.py` converts its UI input from nm to µm before calling into
-  `physics/`)
+- Wavelength: **µm** (`backend/simulator.py` converts the frontend's UI input from nm to µm
+  before calling into `physics/`; the archived `app/main_streamlit_archived.py` did the same)
 - NA: dimensionless
 
 ### Documentation convention
@@ -157,9 +173,10 @@ general theory explicitly rather than leaving it implicit.
 ### Tests
 
 `tests/` mirrors `physics/` one-to-one (`test_grid.py`, `test_fft_engine.py`,
-`test_propagation.py`, `test_diffraction.py`, `test_lens.py`, `test_imaging.py`). Tests validate
-numerics against hand calculations and closed-form Goodman results, not just shape/type checks —
-follow that standard for new physics functions.
+`test_propagation.py`, `test_diffraction.py`, `test_lens.py`, `test_imaging.py`,
+`test_aberrations.py`, `test_opc.py`), plus `test_api.py` for the FastAPI translation layer. Tests
+validate numerics against hand calculations and closed-form Goodman results, not just shape/type
+checks — follow that standard for new physics functions.
 
 ## Weekly workflow
 

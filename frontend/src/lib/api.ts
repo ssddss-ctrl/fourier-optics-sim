@@ -101,6 +101,35 @@ export interface SpectrumPipelineResponse {
   aerial_intensity: number[];
 }
 
+export interface OpcRequest extends PrintedFeatureRequest {
+  gain?: number;
+  convergence_tol?: number;
+  max_iterations?: number;
+}
+
+export interface OpcIterationSummary {
+  iteration: number;
+  max_abs_epe: number | null;
+  mean_abs_epe: number | null;
+}
+
+export interface OpcResponse {
+  x: number[];
+  target: number[];
+  naive_printed: number[];
+  corrected_mask: number[];
+  corrected_printed: number[];
+  naive_epe: (number | null)[];
+  corrected_epe: (number | null)[];
+  naive_max_abs_epe: number | null;
+  naive_mean_abs_epe: number | null;
+  corrected_max_abs_epe: number | null;
+  corrected_mean_abs_epe: number | null;
+  history: OpcIterationSummary[];
+  n_iterations: number;
+  converged: boolean;
+}
+
 export interface HealthResponse {
   status: string;
   physics_import_check: {
@@ -160,4 +189,8 @@ export function getPrintedFeature(req: PrintedFeatureRequest = {}): Promise<Prin
 
 export function getSpectrumPipeline(req: SpectrumPipelineRequest = {}): Promise<SpectrumPipelineResponse> {
   return postJson("/api/spectrum-pipeline", req);
+}
+
+export function getOpc(req: OpcRequest = {}): Promise<OpcResponse> {
+  return postJson("/api/opc", req);
 }

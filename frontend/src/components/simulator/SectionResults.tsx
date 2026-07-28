@@ -11,16 +11,19 @@
  * that don't fit the base layout have to be an overlay, not more scroll.
  */
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Plot from "../Plot";
 import {
   getAerialImage,
   getAtfOtf,
+  getOpc,
   getPrintedFeature,
   getSpectrumPipeline,
   type AerialImageResponse,
   type AtfOtfResponse,
   type CoherenceMode,
+  type OpcRequest,
+  type OpcResponse,
   type PatternType,
   type PrintedFeatureResponse,
   type SpectrumPipelineResponse,
@@ -61,6 +64,16 @@ const TIER_LABEL: Record<MatchTier, string> = {
   bad: "Poor match",
 };
 
+/** "-42%" / "no printed edge to compare" style summary of naive -> corrected max|EPE|. */
+function formatOpcImprovement(data: OpcResponse): string {
+  const before = data.naive_max_abs_epe;
+  const after = data.corrected_max_abs_epe;
+  if (before == null || after == null) return "—";
+  if (before === 0) return after === 0 ? "0%" : "n/a";
+  const pct = ((before - after) / before) * 100;
+  return `${pct >= 0 ? "-" : "+"}${Math.abs(pct).toFixed(0)}%`;
+}
+
 function ObservationsBox({ result }: { result: PrintedFeatureResponse | null }) {
   const { tier, message } = classifyMatch(result);
   return (
@@ -99,6 +112,7 @@ export function SectionResults({
 }) {
   const [showAerialAdvanced, setShowAerialAdvanced] = useState(false);
   const [showPipelineAdvanced, setShowPipelineAdvanced] = useState(false);
+  const [showOpcAdvanced, setShowOpcAdvanced] = useState(false);
 
   const maskParams = useMemo(
     () => ({
@@ -132,6 +146,23 @@ export function SectionResults({
     aerialParams,
     getSpectrumPipeline,
   );
+
+  // OPC is only forward-modeled up to max_iterations times per request, so
+  // gate the fetch behind the modal being open rather than firing on every
+  // upstream control change like the two panels above -- opcParams stays
+  // `null` (a stable reference) until the toggle is opened, and fetchOpc is
+  // memoized with an empty dep array so useApiPanel's effect only re-fires
+  // when opcParams itself changes identity (toggle open, or printedParams
+  // changing while already open), not on every render.
+  const opcParams = useMemo<OpcRequest | null>(
+    () => (showOpcAdvanced ? printedParams : null),
+    [showOpcAdvanced, printedParams],
+  );
+  const fetchOpc = useCallback(
+    (req: OpcRequest | null) => (req ? getOpc(req) : Promise.resolve(null)),
+    [],
+  );
+  const opcPanel = useApiPanel<OpcRequest | null, OpcResponse | null>(opcParams, fetchOpc);
 
   return (
     <section className="flex h-screen w-full flex-col items-center justify-center gap-3 px-6">
@@ -207,6 +238,13 @@ export function SectionResults({
           className="text-xs text-ink-muted underline-offset-2 transition-colors hover:text-ink-secondary hover:underline"
         >
           Advanced: spectrum pipeline
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowOpcAdvanced(true)}
+          className="text-xs text-ink-muted underline-offset-2 transition-colors hover:text-ink-secondary hover:underline"
+        >
+          Advanced: OPC correction
         </button>
       </div>
 
@@ -415,6 +453,122 @@ export function SectionResults({
               useResizeHandler
             />
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={showOpcAdvanced}
+        onClose={() => setShowOpcAdvanced(false)}
+        title="OPC Correction (Week 12)"
+      >
+        {opcPanel.error ? (
+          <div className="rounded border border-target/40 bg-target/10 px-3 py-2 text-sm text-target">
+            Failed to load: {opcPanel.error}
+          </div>
+        ) : (
+          opcPanel.data && (
+            <div className="space-y-4">
+              <p className="text-xs text-ink-muted">
+                Edge-bias OPC (Goodman 6.6.1) biases each mask edge opposite its measured print error,
+                iteratively, so the printed feature matches the target instead of the uncorrected mask.{" "}
+                {opcPanel.data.converged
+                  ? `Converged in ${opcPanel.data.n_iterations} iteration${opcPanel.data.n_iterations === 1 ? "" : "s"}.`
+                  : `Did not converge within ${opcPanel.data.n_iterations} iterations.`}
+              </p>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div>
+                  <p className="mb-1 text-xs text-ink-muted">Before OPC (naive mask)</p>
+                  <Plot
+                    data={[
+                      {
+                        x: opcPanel.data.x,
+                        y: opcPanel.data.target,
+                        type: "scatter",
+                        mode: "lines",
+                        name: "target",
+                        line: { color: TARGET_COLOR, width: 1.2, shape: "hvh" },
+                        fill: "tozeroy",
+                        fillcolor: TARGET_FILL,
+                      },
+                      {
+                        x: opcPanel.data.x,
+                        y: opcPanel.data.naive_printed,
+                        type: "scatter",
+                        mode: "lines",
+                        name: "printed",
+                        line: { color: PRIMARY_COLOR, width: 2, shape: "hvh" },
+                      },
+                    ]}
+                    layout={darkLayout({
+                      height: 220,
+                      margin: { l: 40, r: 20, t: 10, b: 30 },
+                      xaxis: { title: { text: "x (µm)" } },
+                      yaxis: { title: { text: "Transmission" }, range: [-0.1, 1.3] },
+                    })}
+                    config={PLOT_CONFIG}
+                    style={{ width: "100%", height: "220px" }}
+                    useResizeHandler
+                  />
+                </div>
+                <div>
+                  <p className="mb-1 text-xs text-ink-muted">After OPC (corrected mask)</p>
+                  <Plot
+                    data={[
+                      {
+                        x: opcPanel.data.x,
+                        y: opcPanel.data.target,
+                        type: "scatter",
+                        mode: "lines",
+                        name: "target",
+                        line: { color: TARGET_COLOR, width: 1.2, shape: "hvh" },
+                        fill: "tozeroy",
+                        fillcolor: TARGET_FILL,
+                      },
+                      {
+                        x: opcPanel.data.x,
+                        y: opcPanel.data.corrected_printed,
+                        type: "scatter",
+                        mode: "lines",
+                        name: "printed",
+                        line: { color: PHASE_COLOR, width: 2, shape: "hvh" },
+                      },
+                    ]}
+                    layout={darkLayout({
+                      height: 220,
+                      margin: { l: 40, r: 20, t: 10, b: 30 },
+                      xaxis: { title: { text: "x (µm)" } },
+                      yaxis: { title: { text: "Transmission" }, range: [-0.1, 1.3] },
+                    })}
+                    config={PLOT_CONFIG}
+                    style={{ width: "100%", height: "220px" }}
+                    useResizeHandler
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <Metric
+                  label="Max |EPE| before"
+                  value={
+                    opcPanel.data.naive_max_abs_epe != null
+                      ? `${opcPanel.data.naive_max_abs_epe.toFixed(4)} µm`
+                      : "—"
+                  }
+                />
+                <Metric
+                  label="Max |EPE| after"
+                  value={
+                    opcPanel.data.corrected_max_abs_epe != null
+                      ? `${opcPanel.data.corrected_max_abs_epe.toFixed(4)} µm`
+                      : "—"
+                  }
+                />
+                <Metric label="Improvement" value={formatOpcImprovement(opcPanel.data)} />
+                <Metric label="Iterations" value={`${opcPanel.data.n_iterations} (${opcPanel.data.converged ? "converged" : "capped"})`} />
+              </div>
+            </div>
+          )
         )}
       </Modal>
     </section>
