@@ -1,15 +1,15 @@
 import { useRef } from "react";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { useNavigate } from "react-router-dom";
-import OpticalPipelineScene from "../components/OpticalPipelineScene";
+import HologramHero from "../components/HologramHero";
 
 /**
  * Landing page, per docs/design/fo-app-ui.pdf (Page 1): a full-viewport
- * opening section (title + rotating optical-pipeline scene + credit),
- * then a scroll-revealed overview section with the button into the
- * simulator. The temporary GET /health wiring check that used to live
- * here (added for the frontend/backend integration prompt) is gone now
- * that this is real content.
+ * opening section (title + hologram hero image + credit), then a
+ * scroll-revealed overview section with the button into the simulator. The
+ * temporary GET /health wiring check that used to live here (added for the
+ * frontend/backend integration prompt) is gone now that this is real
+ * content.
  */
 export default function Landing() {
   const navigate = useNavigate();
@@ -42,18 +42,37 @@ export default function Landing() {
     <div className="bg-page">
       <motion.section
         ref={section1Ref}
-        style={{ opacity: section1Opacity, scale: section1Scale }}
+        style={{
+          opacity: section1Opacity,
+          scale: section1Scale,
+          backgroundImage:
+            "radial-gradient(ellipse at center, rgba(57,135,229,0.08) 0%, rgba(13,13,13,0) 60%)," +
+            "linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px)," +
+            "linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px)",
+          backgroundSize: "auto, 48px 48px, 48px 48px",
+        }}
         className="relative flex h-screen flex-col items-center justify-center gap-10 bg-page px-4"
       >
         <h1 className="text-center text-4xl font-semibold text-ink sm:text-5xl">
           Fourier Optics Lithography Simulator
         </h1>
         <div className="h-[55vh] w-full max-w-2xl">
-          <OpticalPipelineScene />
+          <HologramHero />
         </div>
         <span className="absolute right-6 bottom-4 text-xs text-ink-muted">
           Soham Damle
         </span>
+
+        <motion.div
+          className="absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-xs text-ink-muted"
+          animate={{ y: [0, 6, 0] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>Scroll Down</span>
+        </motion.div>
       </motion.section>
 
       <motion.section
