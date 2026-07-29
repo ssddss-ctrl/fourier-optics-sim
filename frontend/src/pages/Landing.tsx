@@ -73,13 +73,13 @@ export default function Landing() {
             onClick={() => navigate("/simulator")}
             className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
           >
-            Go to Simulator
+            1D Simulator
           </button>
           <button
             onClick={() => navigate("/simulator-2d")}
             className="rounded-full border border-axis px-6 py-3 text-sm font-medium text-ink-secondary transition-colors hover:border-ink-secondary hover:text-ink"
           >
-            Explore 2D Patterns →
+            2D Simulator →
           </button>
         </div>
       </motion.section>

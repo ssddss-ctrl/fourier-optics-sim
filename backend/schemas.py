@@ -105,7 +105,12 @@ class Mask2DRequest(Mask2DParams):
 
 class Simulate2DRequest(Mask2DParams, Optical2DParams):
     coherence: CoherenceMode = "Coherent"
-    threshold: float = Field(0.3, gt=0, lt=1, description="Resist threshold, fraction of clear-field intensity")
+    # 0.5, not the "sharpest" value (~0.2-0.3) for these default pattern/optics params -- mirrors
+    # backend/schemas.py's own OpticalParams.defocus_waves precedent (0.8, not 0.0): a first-time
+    # user should see a "Decent" match out of the box (~79% IoU at these defaults), not a
+    # near-perfect one, and discover the fix by lowering this threshold in Advanced options,
+    # exactly the same discovery pattern as the 1D page's focus-error default.
+    threshold: float = Field(0.5, gt=0, lt=1, description="Resist threshold, fraction of clear-field intensity")
 
 
 class Mask2DResponse(BaseModel):

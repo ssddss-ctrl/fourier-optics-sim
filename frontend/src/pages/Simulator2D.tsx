@@ -40,11 +40,15 @@ export default function Simulator2D() {
   const [holeDiameter, setHoleDiameter] = useState(0.6);
   const [pitch, setPitch] = useState(1.5);
 
-  // Optics
+  // Optics. threshold defaults to 0.5 (not the "sharpest" ~0.2-0.3 for these default
+  // pattern/optics params), matching backend/schemas.py's Simulate2DRequest.threshold default --
+  // same precedent as Simulator.tsx's own focusError default (0.8, not 0.0): a first-time user
+  // should see a "Decent" match out of the box, not a near-perfect one, and discover the fix via
+  // this page's own Advanced options panel.
   const [wavelengthNm, setWavelengthNm] = useState(193.0);
   const [NA, setNA] = useState(0.75);
   const [coherence, setCoherence] = useState<CoherenceMode>("Coherent");
-  const [threshold, setThreshold] = useState(0.3);
+  const [threshold, setThreshold] = useState(0.5);
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-page text-ink">
