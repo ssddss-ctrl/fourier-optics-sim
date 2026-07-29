@@ -92,12 +92,16 @@ from . import simulator
 
 app = FastAPI(title="Fourier Optics Lithography Simulator API")
 
-# Vite's dev server (frontend/) runs on localhost:5173 by default -- allow
-# it explicitly rather than a wildcard, since this is a real (if small)
-# CORS policy, not just a local convenience toggle.
+# Vite's dev server (frontend/) runs on localhost:5173 by default; the
+# deployed frontend is the Vercel production URL below -- allow both
+# explicitly rather than a wildcard, since this is a real (if small) CORS
+# policy, not just a local convenience toggle.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=[
+        "http://localhost:5173",
+        "https://fourier-optics-sim.vercel.app",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
