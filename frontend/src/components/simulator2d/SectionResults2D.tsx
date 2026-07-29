@@ -195,10 +195,8 @@ export function SectionResults2D({
       </Modal>
 
       <p className="max-w-2xl text-center text-xs text-ink-muted">
-        No 2D OPC and no formal 2D edge-placement-error metric. A 2D "edge" is a contour, not a
-        point along one axis, and correcting it needs different machinery than the 1D edge-bias
-        OPC loop; fidelity here is reported via intersection-over-union (IoU) between the printed
-        and target patterns instead.
+        Fidelity is reported via intersection-over-union (IoU) between the printed and target
+        patterns.
       </p>
     </section>
   );

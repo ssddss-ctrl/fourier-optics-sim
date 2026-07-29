@@ -81,22 +81,26 @@ export default function Landing() {
         className="flex min-h-screen flex-col items-center justify-center gap-8 bg-page px-4 text-center"
       >
         <p className="max-w-xl text-lg text-ink-secondary">
-          This simulator models the full coherent lithography imaging chain —
-          from mask pattern to aerial image to printed feature — built from
-          first-principles Fourier optics. Explore how wavelength, numerical
-          aperture, coherence, and focus error shape what actually prints on
-          the wafer.
+          This simulator models the full coherent lithography imaging chain,
+          built from first-principles Fourier optics: light diffracts off a
+          mask pattern, propagates and passes through a lens that cuts off
+          high spatial frequencies by numerical aperture, forms an aerial
+          image, and gets thresholded into a printed feature.
+        </p>
+        <p className="max-w-xl text-lg text-ink-secondary">
+          Explore how wavelength, numerical aperture, coherence, and focus
+          error shape what actually prints on the wafer.
         </p>
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={() => navigate("/simulator")}
             className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
           >
-            1D Simulator
+            1D Simulator →
           </button>
           <button
             onClick={() => navigate("/simulator-2d")}
-            className="rounded-full border border-axis px-6 py-3 text-sm font-medium text-ink-secondary transition-colors hover:border-ink-secondary hover:text-ink"
+            className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
           >
             2D Simulator →
           </button>
