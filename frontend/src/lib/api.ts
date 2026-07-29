@@ -139,6 +139,33 @@ export interface HealthResponse {
   };
 }
 
+// ── 2D extension (Week 12 addendum) ──────────────────────────────────────────
+
+export type Pattern2DType = "Contact Hole Array" | "Chip Block Layout";
+
+export interface Simulate2DRequest {
+  pattern_type?: Pattern2DType;
+  hole_diameter?: number;
+  pitch?: number;
+  L?: number;
+  N?: number;
+  wavelength_nm?: number;
+  NA?: number;
+  threshold?: number;
+}
+
+export interface Simulate2DResponse {
+  x: number[];
+  y: number[];
+  mask: number[][];
+  target: number[][];
+  aerial_intensity: number[][];
+  printed: number[][];
+  cutoff_frequency: number;
+  fidelity_score: number | null;
+  fidelity_warning: string | null;
+}
+
 // ── Requests ──────────────────────────────────────────────────────────────────
 
 class ApiError extends Error {
@@ -193,4 +220,8 @@ export function getSpectrumPipeline(req: SpectrumPipelineRequest = {}): Promise<
 
 export function getOpc(req: OpcRequest = {}): Promise<OpcResponse> {
   return postJson("/api/opc", req);
+}
+
+export function getSimulate2D(req: Simulate2DRequest = {}): Promise<Simulate2DResponse> {
+  return postJson("/api/2d/simulate", req);
 }

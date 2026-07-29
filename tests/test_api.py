@@ -29,6 +29,10 @@ from imaging import (
     linewidth_error,
 )
 from opc import edge_bias_opc
+from grid2d import Grid2D
+from masks2d import contact_hole_array
+from lens2d import coherent_aerial_image_2d
+from imaging2d import iou_score
 
 from backend.main import app
 
@@ -270,6 +274,64 @@ def test_opc_reports_improvement_for_correctable_feature():
 
     assert body["converged"] is True
     assert body["corrected_max_abs_epe"] <= body["naive_max_abs_epe"]
+
+
+# ── /api/2d/simulate ──────────────────────────────────────────────────────
+
+L2D, N2D = 8.0, 64
+HOLE_DIAMETER, PITCH = 0.6, 2.0
+
+
+def test_simulate2d_contact_hole_array_matches_direct_call():
+    resp = client.post("/api/2d/simulate", json={
+        "pattern_type": "Contact Hole Array", "hole_diameter": HOLE_DIAMETER, "pitch": PITCH,
+        "L": L2D, "N": N2D, "wavelength_nm": WAVELENGTH_NM, "NA": NA, "threshold": 0.3,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    grid = Grid2D(L=L2D, N=N2D)
+    mask = contact_hole_array(grid.X, grid.Y, hole_diameter=HOLE_DIAMETER, pitch=PITCH)
+    _, expected_intensity, _ = coherent_aerial_image_2d(mask, grid, wavelength=WAVELENGTH_UM, NA=NA)
+    expected_score, _ = iou_score(mask, mask)  # target==mask for this pattern_type (no OPC yet)
+
+    assert body["x"] == pytest.approx(grid.x.tolist())
+    assert body["y"] == pytest.approx(grid.y.tolist())
+    for row_body, row_expected in zip(body["mask"], mask.tolist()):
+        assert row_body == pytest.approx(row_expected)
+    for row_body, row_expected in zip(body["aerial_intensity"], expected_intensity.tolist()):
+        assert row_body == pytest.approx(row_expected, abs=1e-9)
+    assert body["cutoff_frequency"] == pytest.approx(cutoff_frequency(NA, WAVELENGTH_UM))
+
+
+def test_simulate2d_chip_block_layout_pattern_runs_end_to_end():
+    resp = client.post("/api/2d/simulate", json={
+        "pattern_type": "Chip Block Layout",
+        "L": L2D, "N": N2D, "wavelength_nm": WAVELENGTH_NM, "NA": NA, "threshold": 0.3,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["fidelity_score"] is not None
+    assert body["fidelity_warning"] is None
+
+
+def test_simulate2d_wide_open_pupil_prints_target_exactly():
+    """Same wide-open-pupil limiting case the 1D endpoints/physics tests
+    use: with a cutoff far above the grid's Nyquist frequency, the printed
+    pattern must equal the target exactly and fidelity_score must be
+    exactly 1.0 -- a real hand-verified end-to-end check, not a shape/type
+    check."""
+    resp = client.post("/api/2d/simulate", json={
+        "pattern_type": "Contact Hole Array", "hole_diameter": 1.0, "pitch": 2.0,
+        "L": L2D, "N": N2D, "wavelength_nm": 0.001, "NA": 0.99, "threshold": 0.3,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    for row_printed, row_target in zip(body["printed"], body["target"]):
+        assert row_printed == row_target
+    assert body["fidelity_score"] == pytest.approx(1.0)
+    assert body["fidelity_warning"] is None
 
 
 # ── Response validation (Pydantic / numpy-to-JSON conversion) ────────────────

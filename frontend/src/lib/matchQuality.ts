@@ -8,8 +8,9 @@
  * epe_warning, linewidth_warning).
  *
  * Thresholds (µm) are engineering judgment calls for this project's
- * default field width (L=10µm, sub-µm features), not a Goodman equation --
- * same convention imaging.ts's thresholding already flags for itself.
+ * default field width (L=10µm, sub-µm features), not a physics-derived
+ * equation -- same convention imaging.ts's thresholding already flags for
+ * itself.
  */
 
 import type { PrintedFeatureResponse } from "./api";

@@ -74,6 +74,46 @@ class OpcRequest(PrintedFeatureRequest):
     max_iterations: int = Field(20, gt=0, description="Hard cap on forward-model passes")
 
 
+# ── 2D extension (Week 12 addendum -- see physics/grid2d.py, masks2d.py, ────
+#    lens2d.py, imaging2d.py). Coherent-only, no defocus/aberrations, no
+#    OPC -- see docs/physics_assumptions.md's "2D Extension Assumptions"
+#    section for the full list of deliberately scoped-out boundaries.
+
+Pattern2DType = Literal["Contact Hole Array", "Chip Block Layout"]
+
+
+class GridParams2D(BaseModel):
+    L: float = Field(10.0, gt=0, description="Square field width, µm (both axes)")
+    N: int = Field(128, gt=0, description="Grid points per axis (square grid, N*N total points)")
+
+
+class Mask2DParams(GridParams2D):
+    pattern_type: Pattern2DType = "Contact Hole Array"
+    hole_diameter: float = Field(0.6, gt=0, description="Hole diameter, µm (pattern_type='Contact Hole Array')")
+    pitch: float = Field(1.5, gt=0, description="Hole pitch, µm (pattern_type='Contact Hole Array')")
+
+
+class Optical2DParams(BaseModel):
+    wavelength_nm: float = Field(193.0, gt=0, description="Wavelength, nm (converted to µm before calling physics/)")
+    NA: float = Field(0.75, gt=0, description="Numerical aperture")
+
+
+class Simulate2DRequest(Mask2DParams, Optical2DParams):
+    threshold: float = Field(0.3, gt=0, lt=1, description="Resist threshold, fraction of clear-field intensity")
+
+
+class Simulate2DResponse(BaseModel):
+    x: List[float]
+    y: List[float]
+    mask: List[List[float]]
+    target: List[List[float]]
+    aerial_intensity: List[List[float]]
+    printed: List[List[float]]
+    cutoff_frequency: float
+    fidelity_score: Optional[float] = None
+    fidelity_warning: Optional[str] = None
+
+
 # ── Response models ──────────────────────────────────────────────────────────
 
 class MaskResponse(BaseModel):

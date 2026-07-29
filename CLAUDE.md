@@ -96,6 +96,36 @@ Aberrations (Week 11) are implemented in `physics/aberrations.py`, not `physics/
 originally planned. The full build plan (see `README.md`) is implemented through Week 12 (OPC)
 — there is no remaining "not yet built" pipeline stage.
 
+### 2D extension (Week 12 addendum, separate from the pipeline above)
+
+A second, deliberately-scoped-smaller pipeline generalizing masks/lens/imaging (not
+propagation/diffraction/aberrations/opc) to two spatial dimensions:
+
+- **`physics/grid2d.py`** — `Grid2D` (square field/grid only), the 2D analogue of `Grid1D`:
+  meshgridded `X/Y`/`FX/FY` built from `masks.make_grid`/`fft_engine.freq_axis` unchanged.
+- **`physics/masks2d.py`** — 2D dark-field patterns: `single_hole`, `contact_hole_array`,
+  `rectangle`, `chip_block_layout` (a fixed illustrative interconnect-style layout).
+- **`physics/lens2d.py`** — `pupil_function_freq_2d`, a genuine **circular** aperture
+  (`fx²+fy²<=f_cutoff²`), more physically correct than `lens.py`'s 1D brick-wall cross-section;
+  `coherent_aerial_image_2d` mirrors `lens.coherent_aerial_image` using `fft_engine.fft2d/ifft2d`.
+  Coherent-only — no 2D defocus/aberrations, no 2D incoherent/OTF path.
+- **`physics/imaging2d.py`** — reuses `imaging.apply_threshold` unchanged (already
+  shape-agnostic); `iou_score` is the 2D fidelity stand-in for 1D's EPE/linewidth-error.
+- **No 2D OPC, no formal 2D edge-placement-error metric.** A 2D "edge" is a contour, not a
+  scan-for-0/1-transition point along one axis — correcting it needs gauge points along a
+  polygon boundary biased along the local normal, genuinely different (and more open-ended)
+  machinery than `physics/opc.py`'s 1D loop, not a mechanical extension of it. See
+  `docs/physics_assumptions.md`'s "2D Extension Assumptions" section for the full boundary list.
+- **`backend/`** — one consolidated `POST /api/2d/simulate` endpoint (mask + target +
+  aerial_intensity + printed + fidelity_score together, since 2D arrays are far heavier than 1D
+  ones over JSON), extending `schemas.py`/`simulator.py`/`main.py` in place rather than forking
+  parallel `*2d.py` backend files.
+- **`frontend/`** — a separate route, `pages/Simulator2D.tsx` at `/simulator-2d` (linked from
+  `Landing.tsx`'s second CTA), a single scrollable showcase page (not the 1D mode's fixed-viewport
+  pager), rendering `go.Heatmap` panels via `lib/heatmapTheme.ts`'s dataviz-skill-validated
+  sequential (aerial intensity) and categorical (printed-vs-target agreement map) colorscales.
+  Does not modify any `components/simulator/*` file or `pages/Simulator.tsx`.
+
 ### Frontend/backend split (replaces the Streamlit app)
 
 The Streamlit app (`app/main.py`) has been retired to `app/main_streamlit_archived.py` (kept for
@@ -104,9 +134,10 @@ reference only, not maintained) and replaced by:
 - **`backend/`** — a FastAPI app (`backend/main.py`) that imports `physics/` directly (no
   `plotting/`, no matplotlib/plotly — those were UI-layer concerns of the old Streamlit app).
   `requirements-backend.txt` covers its dependencies (`fastapi`, `uvicorn`, `numpy`) separately
-  from `requirements.txt`, which now only serves `physics/`/`tests/`/`scripts/`. Six POST
+  from `requirements.txt`, which now only serves `physics/`/`tests/`/`scripts/`. Seven POST
   endpoints (`/api/mask`, `/api/aerial-image`, `/api/atf-otf`, `/api/printed-feature`,
-  `/api/spectrum-pipeline`, `/api/opc`) plus `/health`; request/response validation lives in
+  `/api/spectrum-pipeline`, `/api/opc`, `/api/2d/simulate`) plus `/health`; request/response
+  validation lives in
   `backend/schemas.py`, the actual physics/-calling logic in `backend/simulator.py` (kept
   separate so it's unit-testable without going through HTTP — see `tests/test_api.py`).
 - **`frontend/`** — a Vite + React + TypeScript app (`react-router-dom`, `three` /
@@ -174,9 +205,13 @@ general theory explicitly rather than leaving it implicit.
 
 `tests/` mirrors `physics/` one-to-one (`test_grid.py`, `test_fft_engine.py`,
 `test_propagation.py`, `test_diffraction.py`, `test_lens.py`, `test_imaging.py`,
-`test_aberrations.py`, `test_opc.py`), plus `test_api.py` for the FastAPI translation layer. Tests
-validate numerics against hand calculations and closed-form Goodman results, not just shape/type
-checks — follow that standard for new physics functions.
+`test_aberrations.py`, `test_opc.py`, plus the 2D extension's `test_grid2d.py`,
+`test_masks2d.py`, `test_lens2d.py`, `test_imaging2d.py`), plus `test_api.py` for the FastAPI
+translation layer (both 1D and 2D endpoints). Tests validate numerics against hand calculations
+and closed-form Goodman results, not just shape/type checks — follow that standard for new
+physics functions. The 2D extension's `test_lens2d.py` includes a closed-form Airy-disk check
+(circular-pupil coherent PSF vs. `scipy.special.j1`'s jinc function) — `scipy` is a
+`requirements.txt` dependency for this reason (test-only, not used by any non-test code).
 
 ## Weekly workflow
 

@@ -44,6 +44,14 @@ unit-tested directly without going through HTTP (see tests/test_api.py).
 /api/opc (Week 12) is the one exception to "mirrors the archived Streamlit
 app": that app never had an OPC panel, so this endpoint's shape was
 designed fresh against physics/opc.py, not ported from anywhere.
+
+/api/2d/simulate (Week 12's 2D extension) is a second, separate addendum:
+a single consolidated endpoint (mask + target + aerial_intensity + printed
++ fidelity_score together, not split per-concern like the 1D endpoints
+above) since 2D arrays are ~100x+ heavier than 1D ones over JSON -- see
+backend/simulator.py's compute_simulate2d docstring for the bundling
+reasoning, and docs/physics_assumptions.md's "2D Extension Assumptions"
+section for this extension's scope (coherent-only, no 2D OPC/EPE).
 """
 
 import sys
@@ -71,6 +79,8 @@ from .schemas import (
     SpectrumPipelineResponse,
     OpcRequest,
     OpcResponse,
+    Simulate2DRequest,
+    Simulate2DResponse,
 )
 from . import simulator
 
@@ -134,3 +144,8 @@ def api_spectrum_pipeline(req: SpectrumPipelineRequest) -> dict:
 @app.post("/api/opc", response_model=OpcResponse)
 def api_opc(req: OpcRequest) -> dict:
     return simulator.compute_opc(req)
+
+
+@app.post("/api/2d/simulate", response_model=Simulate2DResponse)
+def api_simulate_2d(req: Simulate2DRequest) -> dict:
+    return simulator.compute_simulate2d(req)

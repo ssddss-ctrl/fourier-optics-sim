@@ -152,6 +152,113 @@ def ifft1d(spectrum: np.ndarray, dx: float, normalize: bool = True) -> np.ndarra
     return signal
 
 
+def fft2d(signal: np.ndarray, dx: float, normalize: bool = True) -> np.ndarray:
+    """
+    Forward FFT of a 2D spatial-domain signal, centered and (optionally)
+    normalized -- the direct 2D generalization of fft1d.
+
+    Goodman connection
+    -------------------
+    Approximates the continuous 2D Fourier transform
+
+        G(fx, fy) = ∫∫ g(x, y) exp(-j2π(fx·x + fy·y)) dx dy
+
+    the natural 2D extension of the 1D transform pair fft1d already
+    implements (Goodman's general theory is stated in 2D from the start;
+    fft1d's separate 1D treatment was this project's own simplification,
+    not Goodman's). np.fft.fft2 computes the unnormalized 2D discrete sum;
+    fftshift (both axes, np.fft.fft2's default axes=(-2,-1) already covers
+    a 2D array) re-centers it to match a Grid2D's FX/FY layout, and
+    dividing by the total sample count N*N (signal.size, not len(signal),
+    since a 2D array's outer len() is only one axis) keeps DC equal to
+    the spatial mean of the signal, mirroring fft1d's own /N convention
+    exactly (that convention generalizes to /Nx/Ny = /size for a general
+    2D array, which reduces to fft1d's /N when one axis has length 1).
+
+    WHY THIS BELONGS HERE, NOT A NEW MODULE
+    -------------------------------------------------------------------
+    This module's own stated charter is "the single place raw FFT calls
+    are turned into physically labeled spectra" -- that job description
+    doesn't depend on dimensionality, so fft2d/ifft2d extend it directly
+    rather than forking a parallel fft_engine2d.py. Nothing above (freq_axis,
+    fft1d, ifft1d, check_sampling) is modified; this is a pure addition.
+
+    VALIDATION PERFORMED BY HAND BEFORE DELIVERY
+    ------------------------------------------------
+    For a separable signal g(x,y) = gx(x)*gy(y), the 2D FT factors exactly
+    into a product of two independent 1D FTs: G(fx,fy) = Gx(fx)*Gy(fy) (the
+    2D transform integral splits into a product of two 1D integrals for any
+    separable integrand). Verified numerically: built a separable
+    axis-aligned rectangle (rect(x/wx) outer-product rect(y/wy)) and
+    confirmed fft2d(rectangle, dx) equals np.outer(fft1d(rect_x, dx),
+    fft1d(rect_y, dx)) to floating-point precision (max abs diff ~1e-16) --
+    this validates the entire 2D FFT machinery against the already-verified
+    1D machinery in one shot, rather than re-deriving 2D correctness from
+    scratch. See tests/test_fft_engine.py::test_fft2d_separable_matches_outer_product_of_1d.
+
+    Parameters
+    ----------
+    signal    : ndarray, shape (Ny, Nx) — spatial-domain values on a
+                 Grid2D's Y, X meshgrid (row index -> y, column index -> x,
+                 matching np.meshgrid's default 'xy' indexing convention --
+                 see physics/grid2d.py)
+    dx        : float — spatial sample spacing in µm (square grid; kept for
+                 API symmetry with fft1d/ifft2d, not used to rescale here,
+                 same as fft1d's own dx parameter)
+    normalize : bool — divide by signal.size so DC = mean(signal) (default
+                 True, matches fft1d's convention)
+
+    Returns
+    -------
+    spectrum : ndarray, shape (Ny, Nx), complex
+        Centered 2D spectrum; index [i, j] corresponds to frequency
+        (FX[i,j], FY[i,j]) from a matching Grid2D.
+    """
+    spectrum = np.fft.fftshift(np.fft.fft2(signal))
+    if normalize:
+        spectrum = spectrum / signal.size
+    return spectrum
+
+
+def ifft2d(spectrum: np.ndarray, dx: float, normalize: bool = True) -> np.ndarray:
+    """
+    Inverse 2D FFT, undoing fft2d exactly (round-trip safe) -- the direct
+    2D generalization of ifft1d.
+
+    Goodman connection
+    -------------------
+    Numerically approximates the inverse 2D Fourier transform
+
+        g(x, y) = ∫∫ G(fx, fy) exp(+j2π(fx·x + fy·y)) dfx dfy
+
+    Must invert both operations fft2d applied (the fftshift re-centering
+    and the /size normalization), in reverse order, exactly mirroring
+    ifft1d's own un-shift-then-un-normalize structure -- this guarantees
+    ifft2d(fft2d(g)) == g to numerical precision, the same round-trip
+    guarantee later 2D modules (lens2d.py's pupil filtering) depend on.
+
+    Parameters
+    ----------
+    spectrum  : ndarray, shape (Ny, Nx), complex — centered 2D spectrum, as
+                 returned by fft2d
+    dx        : float — spatial sample spacing in µm (kept for API
+                 symmetry with fft2d; see note there)
+    normalize : bool — must match whatever was used in the corresponding
+                 fft2d call (default True)
+
+    Returns
+    -------
+    signal : ndarray, shape (Ny, Nx), complex
+        Spatial-domain signal. Take .real if the input is known to
+        correspond to a real-valued spatial signal.
+    """
+    unshifted = np.fft.ifftshift(spectrum)
+    if normalize:
+        unshifted = unshifted * unshifted.size
+    signal = np.fft.ifft2(unshifted)
+    return signal
+
+
 def space_bandwidth_product(L: float, B: float) -> float:
     """
     Compute the space-bandwidth product N_sbp = (2L)(2B).

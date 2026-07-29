@@ -46,6 +46,10 @@ from imaging import (
     linewidth_error,
 )
 from opc import edge_bias_opc
+from grid2d import Grid2D
+from masks2d import contact_hole_array, chip_block_layout
+from lens2d import coherent_aerial_image_2d
+from imaging2d import iou_score
 
 from .schemas import (
     MaskRequest,
@@ -54,6 +58,7 @@ from .schemas import (
     PrintedFeatureRequest,
     SpectrumPipelineRequest,
     OpcRequest,
+    Simulate2DRequest,
 )
 
 
@@ -296,4 +301,69 @@ def compute_opc(req: OpcRequest) -> dict:
         ],
         "n_iterations": result["n_iterations"],
         "converged": result["converged"],
+    }
+
+
+# ── 2D extension (Week 12 addendum) ──────────────────────────────────────────
+
+def to_json_list2d(arr: np.ndarray) -> List[List[Optional[float]]]:
+    """
+    2D analogue of to_json_list -- converts each row independently (NaN ->
+    None per element), reusing to_json_list per row rather than
+    reimplementing the same conversion twice.
+    """
+    return [to_json_list(row) for row in np.asarray(arr, dtype=float)]
+
+
+def build_mask2d(req: Simulate2DRequest) -> Tuple[Grid2D, np.ndarray, np.ndarray]:
+    """
+    Build the Grid2D + mask/target pair for a 2D simulate request, mirroring
+    build_mask's single branch on pattern_type (mask and target are
+    identical arrays for both 2D pattern types, same as the 1D build_mask --
+    there is no 2D OPC to eventually make them differ, since 2D OPC is an
+    explicitly out-of-scope boundary for this extension).
+
+    Returns
+    -------
+    grid, mask, target
+    """
+    grid = Grid2D(L=req.L, N=req.N)
+
+    if req.pattern_type == "Contact Hole Array":
+        mask = contact_hole_array(grid.X, grid.Y, hole_diameter=req.hole_diameter, pitch=req.pitch)
+    else:
+        mask = chip_block_layout(grid.X, grid.Y)
+    target = mask
+
+    return grid, mask, target
+
+
+def compute_simulate2d(req: Simulate2DRequest) -> dict:
+    """
+    2D mask -> coherent aerial image (lens2d.coherent_aerial_image_2d) ->
+    threshold (imaging.apply_threshold, reused unchanged) -> printed
+    feature, plus imaging2d.iou_score as the fidelity number -- the 2D
+    counterpart to compute_printed_feature, bundled into one response
+    (mask/target/aerial_intensity/printed/fidelity_score together) since a
+    2D array is ~100x+ heavier than a 1D one over JSON, the same bundling
+    reasoning compute_spectrum_pipeline already applies in the 1D backend.
+    """
+    grid, mask, target = build_mask2d(req)
+    wavelength = req.wavelength_nm / 1000.0
+
+    _, aerial_intensity, _ = coherent_aerial_image_2d(mask, grid, wavelength=wavelength, NA=req.NA)
+    printed = apply_threshold(aerial_intensity, threshold=req.threshold)
+    score, warning = iou_score(target, printed)
+    f0 = cutoff_frequency(req.NA, wavelength)
+
+    return {
+        "x": to_json_list(grid.x),
+        "y": to_json_list(grid.y),
+        "mask": to_json_list2d(mask),
+        "target": to_json_list2d(target),
+        "aerial_intensity": to_json_list2d(aerial_intensity),
+        "printed": to_json_list2d(printed),
+        "cutoff_frequency": float(f0),
+        "fidelity_score": to_json_float(score),
+        "fidelity_warning": warning,
     }

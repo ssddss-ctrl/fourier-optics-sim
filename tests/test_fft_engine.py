@@ -17,6 +17,8 @@ from fft_engine import (
     freq_axis,
     fft1d,
     ifft1d,
+    fft2d,
+    ifft2d,
     space_bandwidth_product,
     check_sampling,
 )
@@ -110,6 +112,61 @@ def test_fft1d_normalize_false_scales_by_N(standard_grid):
     spec_norm = fft1d(mask, dx=dx, normalize=True)
     spec_raw = fft1d(mask, dx=dx, normalize=False)
     assert np.allclose(spec_raw, spec_norm * N)
+
+
+# ── fft2d / ifft2d (2D extension) ────────────────────────────────────────
+
+def test_fft2d_ifft2d_round_trip(standard_grid):
+    L, N, x, dx = standard_grid
+    mask2d = np.outer(line_space_grating(x, pitch=2.0, duty_cycle=0.5),
+                       single_line(x, width=1.0))
+    spectrum = fft2d(mask2d, dx=dx)
+    recovered = ifft2d(spectrum, dx=dx)
+    assert np.max(np.abs(recovered.real - mask2d)) < 1e-10
+
+
+def test_fft2d_round_trip_preserves_imaginary_negligible(standard_grid):
+    L, N, x, dx = standard_grid
+    mask2d = np.outer(single_line(x, width=1.0), single_line(x, width=1.0))
+    spectrum = fft2d(mask2d, dx=dx)
+    recovered = ifft2d(spectrum, dx=dx)
+    assert np.max(np.abs(recovered.imag)) < 1e-10
+
+
+def test_fft2d_separable_matches_outer_product_of_1d(standard_grid):
+    """
+    Key hand-verified check before delivery: for a separable 2D signal
+    g(x,y) = gy(y)*gx(x), the 2D FT must factor exactly into the outer
+    product of the two independent 1D FTs -- G(fx,fy) = Gy(fy)*Gx(fx).
+    Uses two DIFFERENT (asymmetric) 1D profiles so a row/column transposition
+    bug in fft2d couldn't accidentally still pass this check.
+    """
+    L, N, x, dx = standard_grid
+    gy = single_line(x, width=2.0, center=0.0)
+    gx = single_line(x, width=1.0, center=0.0)
+    rectangle_2d = np.outer(gy, gx)
+
+    spectrum_2d = fft2d(rectangle_2d, dx=dx)
+    expected = np.outer(fft1d(gy, dx=dx), fft1d(gx, dx=dx))
+
+    assert np.max(np.abs(spectrum_2d - expected)) < 1e-12
+
+
+def test_fft2d_dc_component_equals_mean(standard_grid):
+    L, N, x, dx = standard_grid
+    mask2d = np.outer(line_space_grating(x, pitch=2.0, duty_cycle=0.5),
+                       line_space_grating(x, pitch=2.0, duty_cycle=0.5))
+    spectrum = fft2d(mask2d, dx=dx)
+    dc_index = np.argmin(np.abs(freq_axis(N, dx)))  # same index on both axes (square grid)
+    assert np.isclose(spectrum[dc_index, dc_index].real, mask2d.mean(), atol=1e-12)
+
+
+def test_fft2d_normalize_false_scales_by_size(standard_grid):
+    L, N, x, dx = standard_grid
+    mask2d = np.outer(single_line(x, width=1.0), single_line(x, width=1.0))
+    spec_norm = fft2d(mask2d, dx=dx, normalize=True)
+    spec_raw = fft2d(mask2d, dx=dx, normalize=False)
+    assert np.allclose(spec_raw, spec_norm * mask2d.size)
 
 
 # ── space_bandwidth_product ──────────────────────────────────────────────

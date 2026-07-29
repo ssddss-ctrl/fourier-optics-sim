@@ -469,8 +469,8 @@ export function SectionResults({
           opcPanel.data && (
             <div className="space-y-4">
               <p className="text-xs text-ink-muted">
-                Edge-bias OPC (Goodman 6.6.1) biases each mask edge opposite its measured print error,
-                iteratively, so the printed feature matches the target instead of the uncorrected mask.{" "}
+                Edge-bias OPC biases each mask edge opposite its measured print error, iteratively,
+                so the printed feature matches the target instead of the uncorrected mask.{" "}
                 {opcPanel.data.converged
                   ? `Converged in ${opcPanel.data.n_iterations} iteration${opcPanel.data.n_iterations === 1 ? "" : "s"}.`
                   : `Did not converge within ${opcPanel.data.n_iterations} iterations.`}

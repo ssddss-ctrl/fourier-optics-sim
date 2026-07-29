@@ -68,12 +68,20 @@ export default function Landing() {
           aperture, coherence, and focus error shape what actually prints on
           the wafer.
         </p>
-        <button
-          onClick={() => navigate("/simulator")}
-          className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
-        >
-          Go to Simulator
-        </button>
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <button
+            onClick={() => navigate("/simulator")}
+            className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+          >
+            Go to Simulator
+          </button>
+          <button
+            onClick={() => navigate("/simulator-2d")}
+            className="rounded-full border border-axis px-6 py-3 text-sm font-medium text-ink-secondary transition-colors hover:border-ink-secondary hover:text-ink"
+          >
+            Explore 2D Patterns →
+          </button>
+        </div>
       </motion.section>
     </div>
   );
