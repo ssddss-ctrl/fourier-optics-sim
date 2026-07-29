@@ -1,19 +1,27 @@
 """
 physics/imaging2d.py
 ------------------------
-2D print-fidelity quantification -- the 2D counterpart to imaging.py's
-thresholding/EPE/linewidth-error section, for the 2D mask -> aerial image
--> printed-feature chain (lens2d.coherent_aerial_image_2d).
+2D counterpart to imaging.py: the incoherent/OTF imaging path, plus
+print-fidelity quantification, for the 2D mask -> aerial image ->
+printed-feature chain.
 
 WHY THIS MODULE EXISTS IN THE PIPELINE
 -----------------------------------------
-imaging.py closes the 1D pipeline's loop by turning an aerial image into a
-printed-feature estimate (apply_threshold) and quantifying how well it
-matches the target (edge_placement_error, linewidth_error). This module
-does the analogous job for 2D:
+imaging.py adds two things on top of lens.py's coherent path: the
+incoherent/OTF imaging path (built from lens.py's own ATF/pupil, not
+reimplemented), and the thresholding/print-fidelity quantification that
+closes the loop. This module does both analogous jobs for 2D:
 
-    2D mask --[lens2d.py]--> 2D aerial image --[threshold]--> printed feature
+    2D mask --[lens2d.py pupil]--> 2D ATF --[this module]--> 2D OTF
+        --[this module]--> incoherent 2D aerial image
+    2D mask --[lens2d.coherent_aerial_image_2d]--> coherent 2D aerial image
+    { either aerial image } --[threshold]--> printed feature
     { 2D target, 2D printed feature } --[this module]--> fidelity score
+
+Mirrors imaging.py's own split exactly: lens2d.py owns the pupil and the
+coherent path; this module owns the OTF/incoherent path and the
+print-fidelity metric, built on top of lens2d.py rather than duplicating
+its pupil logic.
 
 `imaging.apply_threshold` IS REUSED HERE UNCHANGED -- NOT REIMPLEMENTED
 ------------------------------------------------------------------------
@@ -48,6 +56,153 @@ from typing import Optional, Tuple
 
 import numpy as np
 
+from fft_engine import fft2d, ifft2d
+from constants import WAVELENGTH, NA_DEFAULT
+from lens2d import pupil_function_freq_2d
+
+
+# ── ATF / OTF (2D) ───────────────────────────────────────────────────────────
+
+def amplitude_point_spread_function_2d(grid, wavelength: float = WAVELENGTH,
+                                        NA: float = NA_DEFAULT) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Coherent amplitude point-spread function h(x,y): the 2D inverse Fourier
+    transform of the circular pupil -- the direct 2D generalization of
+    imaging.amplitude_point_spread_function, using lens2d.pupil_function_freq_2d
+    (reused unchanged) in place of lens.pupil_function_freq.
+
+    No defocus_waves parameter -- this 2D extension is coherent/incoherent
+    only, no aberrations (see docs/physics_assumptions.md's "2D Extension
+    Assumptions"). H is always the bare circular pupil, unlike the 1D
+    function's optional generalized-pupil branch.
+
+    Parameters
+    ----------
+    grid       : Grid2D — provides the 2D frequency meshgrid grid.FX, grid.FY
+    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+
+    Returns
+    -------
+    h : ndarray, shape (N, N), complex — amplitude PSF (index-0-centered,
+         same DFT-seam convention ifft2d/ifft1d always produce -- see
+         lens2d.py's own Airy-disk test for how to re-center it if a
+         physically-aligned radial cut is ever needed)
+    H : ndarray, shape (N, N) — the circular pupil actually used, returned
+         alongside h so callers don't need a second call to reconstruct it
+    """
+    H = pupil_function_freq_2d(grid, NA=NA, wavelength=wavelength)
+    h = ifft2d(H, grid.dx)
+    return h, H
+
+
+def optical_transfer_function_2d(grid, wavelength: float = WAVELENGTH,
+                                  NA: float = NA_DEFAULT) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    2D optical transfer function (OTF): the frequency response for
+    INCOHERENT illumination -- the direct 2D generalization of
+    imaging.optical_transfer_function (route (1): FT of the intensity PSF
+    |h|^2, normalized by its DC value).
+
+    VALIDATION PERFORMED BY HAND BEFORE DELIVERY
+    ------------------------------------------------
+    - OTF(0,0) == 1.0 exactly (by construction, the same DC-normalization
+      argument as the 1D function).
+    - max(|OTF|) == 1.0, attained only at DC (Property 3, Schwarz's
+      inequality -- the same proof the 1D docstring cites applies
+      unchanged in 2D, since it doesn't depend on axis count).
+    - max(|Im(OTF)|) ~ 1e-9 (real to numerical precision) -- expected,
+      since this 2D extension has no aberration path, so the pupil is
+      always real (unlike the 1D module's optional complex generalized
+      pupil).
+
+    Parameters
+    ----------
+    grid       : Grid2D — provides the 2D frequency meshgrid grid.FX, grid.FY
+    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+
+    Returns
+    -------
+    OTF : ndarray, shape (N, N), complex — normalized 2D OTF (OTF(0,0) = 1
+           exactly; real-valued to numerical precision, since no
+           aberration path exists in this 2D extension)
+    H   : ndarray, shape (N, N) — the circular pupil (ATF) actually applied
+    """
+    h, H = amplitude_point_spread_function_2d(grid, wavelength=wavelength, NA=NA)
+    intensity_psf = np.abs(h) ** 2
+    OTF_raw = fft2d(intensity_psf, grid.dx)
+    # DC index: same 1D index works on both axes since the grid is square
+    # (grid.fx == grid.fy), exactly like grid2d.py's own verify_sampling
+    # note that a square grid's per-axis checks are identical.
+    dc_index = int(np.argmin(np.abs(grid.fx)))
+    OTF = OTF_raw / OTF_raw[dc_index, dc_index]
+    return OTF, H
+
+
+# ── Aerial images (2D) ───────────────────────────────────────────────────────
+
+def incoherent_aerial_image_2d(mask: np.ndarray, grid, wavelength: float = WAVELENGTH,
+                                NA: float = NA_DEFAULT
+                                ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    Incoherent 2D aerial image: the wafer-plane intensity produced by
+    imaging `mask` through the circular-pupil system under INCOHERENT
+    illumination -- the direct 2D generalization of
+    imaging.incoherent_aerial_image, using fft2d/ifft2d in place of
+    fft1d/ifft1d and this module's own optical_transfer_function_2d in
+    place of imaging.optical_transfer_function.
+
+    Frequency-domain multiplication (fft2d(mask) * OTF -> ifft2d), not a
+    real-space convolution with the intensity PSF, for the identical
+    reason imaging.incoherent_aerial_image gives for the 1D case: h's
+    DFT-seam indexing (see amplitude_point_spread_function_2d's docstring)
+    doesn't line up with grid.X/grid.Y's own indexing, so a naive
+    real-space convolution would silently produce a shifted image. Working
+    entirely in frequency domain and inverse-transforming once at the end
+    sidesteps that regardless of how the intermediate PSF happens to be
+    centered -- both fft2d and ifft2d always operate consistently on the
+    same grid.X/grid.Y <-> grid.FX/grid.FY pair.
+
+    VALIDATION PERFORMED BY HAND BEFORE DELIVERY
+    ------------------------------------------------
+    - Wide-open-pupil check (NA/wavelength combo whose cutoff safely
+      exceeds grid.f_max): incoherent image reproduced the original 2D
+      binary mask to floating-point precision, the same limiting-case
+      check lens2d.coherent_aerial_image_2d already performs.
+    - DC/energy check: mean(intensity) equals mean(mask) to floating-point
+      precision, confirming OTF(0,0)=1's normalization preserves the
+      object's average intensity regardless of NA.
+    - Realistic-NA check: intensity stayed non-negative everywhere.
+    - Resolution-limit check: differs measurably from the coherent path
+      for a contact-hole array near the resolution limit, the same
+      contrast the 1D test_incoherent_differs_from_coherent check makes.
+
+    Parameters
+    ----------
+    mask       : ndarray, shape (N, N) — mask transmission (0/1), on
+                  grid.X/grid.Y
+    grid       : Grid2D — mask's spatial/frequency grid (from grid2d.py)
+    wavelength : float — wavelength, µm (defaults to constants.WAVELENGTH)
+    NA         : float — numerical aperture (defaults to constants.NA_DEFAULT)
+
+    Returns
+    -------
+    intensity : ndarray, shape (N, N) — incoherent 2D aerial image, on
+                 grid.X/grid.Y (NOT peak-normalized, matching
+                 lens2d.coherent_aerial_image_2d's own convention)
+    OTF       : ndarray, shape (N, N), complex — the OTF actually applied
+    H         : ndarray, shape (N, N) — the circular pupil (ATF) actually
+                 applied, returned for side-by-side plotting against the
+                 coherent path's own P
+    """
+    OTF, H = optical_transfer_function_2d(grid, wavelength=wavelength, NA=NA)
+    G_obj = fft2d(mask, grid.dx)
+    intensity = np.real(ifft2d(G_obj * OTF, grid.dx))
+    return intensity, OTF, H
+
+
+# ── Thresholding and print-fidelity metric (engineering, not Goodman) ───────
 
 def iou_score(target: np.ndarray, printed: np.ndarray) -> Tuple[float, Optional[str]]:
     """

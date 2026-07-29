@@ -39,15 +39,16 @@ The previous Streamlit app is retired but kept for reference at
 ```
 fourier_optics_sim/
 ├── backend/
-│   ├── main.py                # FastAPI app (live UI backend): 7 POST endpoints + /health
+│   ├── main.py                # FastAPI app (live UI backend): 8 POST endpoints + /health
 │   ├── schemas.py              # Pydantic request/response models (1D + 2D)
 │   └── simulator.py            # physics/-calling logic, unit-tested independent of HTTP
 ├── frontend/                  # Vite + React + TypeScript app (live UI)
 │   └── src/
 │       ├── pages/Landing.tsx        # Animated hologram landing page
 │       ├── pages/Simulator.tsx      # Fixed-viewport 4-page pager (1D)
-│       ├── pages/Simulator2D.tsx    # 2D mask/heatmap showcase page
+│       ├── pages/Simulator2D.tsx    # Fixed-viewport 4-page pager (2D)
 │       ├── components/simulator/    # 1D mask/tune/optics/results sections + OPC panel
+│       ├── components/simulator2d/  # 2D mask/tune/optics/results sections + shared HeatmapPanel
 │       └── lib/heatmapTheme.ts      # Validated colorscales for the 2D heatmap panels
 ├── app/
 │   └── main_streamlit_archived.py   # Retired Streamlit app, kept for reference
@@ -63,7 +64,8 @@ fourier_optics_sim/
 │   ├── grid2d.py               # 2D extension: Grid2D
 │   ├── masks2d.py              # 2D extension: contact-hole array, chip-block layout
 │   ├── lens2d.py                # 2D extension: circular pupil, 2D coherent aerial image
-│   └── imaging2d.py            # 2D extension: IoU fidelity score (no 2D OPC/EPE -- see below)
+│   └── imaging2d.py            # 2D extension: 2D OTF/incoherent imaging, IoU fidelity score
+│                                  #   (no 2D OPC/EPE -- see below)
 ├── plotting/
 │   ├── core.py                 # Matplotlib scaffold for scripts/generate_*.py PNGs
 │   └── interactive.py          # Plotly dark theme (ported to frontend/src/lib/plotlyTheme.ts)
@@ -96,27 +98,33 @@ there is no remaining pipeline stage still only in the archived Streamlit app.
 
 A separate addendum on top of the Week 1–12 build above (not a continuation of the weekly
 sequence — that build plan is complete): a second, smaller pipeline generalizing masks, the
-lens pupil, and coherent imaging to two spatial dimensions, at `/simulator-2d`.
+lens pupil, and coherent/incoherent imaging to two spatial dimensions, at `/simulator-2d` — a
+guided 4-page pager (pattern choice → tune feature → optical system → results) mirroring the 1D
+simulator's own pager exactly.
 
 ```
-2D mask (contact-hole array / chip-block layout) → circular-pupil lens → 2D aerial image
-    → threshold → printed feature → IoU fidelity score
+2D mask (contact-hole array / chip-block layout) → circular-pupil lens
+    → coherent OR incoherent 2D aerial image → threshold → printed feature → IoU fidelity score
 ```
 
 - **Real 2D patterns**: a periodic contact/via array and a simple interconnect-style block
   layout, both dark-field 2D masks (`physics/masks2d.py`), not a 1D cross-section.
 - **A genuine circular lens pupil** (`physics/lens2d.py`) — physically more correct than the 1D
   pipeline's brick-wall pupil approximation, since a real lens aperture is a disk.
+- **Coherent AND incoherent imaging**: `physics/imaging2d.py` adds the 2D OTF path
+  (`optical_transfer_function_2d`, `incoherent_aerial_image_2d`) on top of the circular pupil,
+  selectable via a Coherent/Incoherent toggle on the results page, mirroring the 1D
+  `imaging.py`/`lens.py` split exactly.
 - **Closed-form validation**: the circular pupil's coherent point-spread function matches
   Goodman's classic Airy-disk profile (`scipy.special.j1`), finally delivering the "Week 8: Airy
   pattern" this project's docs originally planned but never built in 1D.
-- **What's deliberately NOT included**: 2D OPC and a formal 2D edge-placement-error metric. A 2D
-  "edge" is a contour, not a point along one axis — correcting it needs gauge points along a
-  polygon boundary biased along the local normal, genuinely different machinery than
-  `physics/opc.py`'s 1D loop, not a mechanical extension of it. `physics/imaging2d.py`'s
-  `iou_score` (intersection-over-union between printed and target) is this extension's simpler
-  fidelity stand-in instead. See `docs/physics_assumptions.md`'s "2D Extension Assumptions"
-  section for the full list of scoped-out boundaries.
+- **What's deliberately NOT included**: 2D OPC, a formal 2D edge-placement-error metric, and 2D
+  aberrations/defocus. A 2D "edge" is a contour, not a point along one axis — correcting it needs
+  gauge points along a polygon boundary biased along the local normal, genuinely different
+  machinery than `physics/opc.py`'s 1D loop, not a mechanical extension of it.
+  `physics/imaging2d.py`'s `iou_score` (intersection-over-union between printed and target) is
+  this extension's simpler fidelity stand-in instead. See `docs/physics_assumptions.md`'s "2D
+  Extension Assumptions" section for the full list of scoped-out boundaries.
 
 ## Physics reference
 

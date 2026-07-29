@@ -75,9 +75,10 @@ class OpcRequest(PrintedFeatureRequest):
 
 
 # ── 2D extension (Week 12 addendum -- see physics/grid2d.py, masks2d.py, ────
-#    lens2d.py, imaging2d.py). Coherent-only, no defocus/aberrations, no
-#    OPC -- see docs/physics_assumptions.md's "2D Extension Assumptions"
-#    section for the full list of deliberately scoped-out boundaries.
+#    lens2d.py, imaging2d.py). Coherent AND incoherent imaging (via
+#    imaging2d.py's OTF path), but no defocus/aberrations and no OPC --
+#    see docs/physics_assumptions.md's "2D Extension Assumptions" section
+#    for the full list of deliberately scoped-out boundaries.
 
 Pattern2DType = Literal["Contact Hole Array", "Chip Block Layout"]
 
@@ -98,8 +99,20 @@ class Optical2DParams(BaseModel):
     NA: float = Field(0.75, gt=0, description="Numerical aperture")
 
 
+class Mask2DRequest(Mask2DParams):
+    pass
+
+
 class Simulate2DRequest(Mask2DParams, Optical2DParams):
+    coherence: CoherenceMode = "Coherent"
     threshold: float = Field(0.3, gt=0, lt=1, description="Resist threshold, fraction of clear-field intensity")
+
+
+class Mask2DResponse(BaseModel):
+    x: List[float]
+    y: List[float]
+    mask: List[List[float]]
+    target: List[List[float]]
 
 
 class Simulate2DResponse(BaseModel):

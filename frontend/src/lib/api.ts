@@ -143,14 +143,25 @@ export interface HealthResponse {
 
 export type Pattern2DType = "Contact Hole Array" | "Chip Block Layout";
 
-export interface Simulate2DRequest {
+export interface Mask2DRequest {
   pattern_type?: Pattern2DType;
   hole_diameter?: number;
   pitch?: number;
   L?: number;
   N?: number;
+}
+
+export interface Mask2DResponse {
+  x: number[];
+  y: number[];
+  mask: number[][];
+  target: number[][];
+}
+
+export interface Simulate2DRequest extends Mask2DRequest {
   wavelength_nm?: number;
   NA?: number;
+  coherence?: CoherenceMode;
   threshold?: number;
 }
 
@@ -220,6 +231,10 @@ export function getSpectrumPipeline(req: SpectrumPipelineRequest = {}): Promise<
 
 export function getOpc(req: OpcRequest = {}): Promise<OpcResponse> {
   return postJson("/api/opc", req);
+}
+
+export function getMask2D(req: Mask2DRequest = {}): Promise<Mask2DResponse> {
+  return postJson("/api/2d/mask", req);
 }
 
 export function getSimulate2D(req: Simulate2DRequest = {}): Promise<Simulate2DResponse> {

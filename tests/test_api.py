@@ -30,9 +30,9 @@ from imaging import (
 )
 from opc import edge_bias_opc
 from grid2d import Grid2D
-from masks2d import contact_hole_array
+from masks2d import contact_hole_array, chip_block_layout
 from lens2d import coherent_aerial_image_2d
-from imaging2d import iou_score
+from imaging2d import incoherent_aerial_image_2d, iou_score
 
 from backend.main import app
 
@@ -276,11 +276,45 @@ def test_opc_reports_improvement_for_correctable_feature():
     assert body["corrected_max_abs_epe"] <= body["naive_max_abs_epe"]
 
 
-# ── /api/2d/simulate ──────────────────────────────────────────────────────
+# ── /api/2d/mask ──────────────────────────────────────────────────────────
 
 L2D, N2D = 8.0, 64
 HOLE_DIAMETER, PITCH = 0.6, 2.0
 
+
+def test_mask2d_contact_hole_array_matches_direct_call():
+    resp = client.post("/api/2d/mask", json={
+        "pattern_type": "Contact Hole Array", "hole_diameter": HOLE_DIAMETER, "pitch": PITCH,
+        "L": L2D, "N": N2D,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    grid = Grid2D(L=L2D, N=N2D)
+    expected_mask = contact_hole_array(grid.X, grid.Y, hole_diameter=HOLE_DIAMETER, pitch=PITCH)
+
+    assert body["x"] == pytest.approx(grid.x.tolist())
+    assert body["y"] == pytest.approx(grid.y.tolist())
+    for row_body, row_expected in zip(body["mask"], expected_mask.tolist()):
+        assert row_body == pytest.approx(row_expected)
+    for row_body, row_expected in zip(body["target"], expected_mask.tolist()):
+        assert row_body == pytest.approx(row_expected)
+
+
+def test_mask2d_chip_block_layout_matches_direct_call():
+    resp = client.post("/api/2d/mask", json={
+        "pattern_type": "Chip Block Layout", "L": L2D, "N": N2D,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    grid = Grid2D(L=L2D, N=N2D)
+    expected_mask = chip_block_layout(grid.X, grid.Y)
+    for row_body, row_expected in zip(body["mask"], expected_mask.tolist()):
+        assert row_body == pytest.approx(row_expected)
+
+
+# ── /api/2d/simulate ──────────────────────────────────────────────────────
 
 def test_simulate2d_contact_hole_array_matches_direct_call():
     resp = client.post("/api/2d/simulate", json={
@@ -302,6 +336,23 @@ def test_simulate2d_contact_hole_array_matches_direct_call():
     for row_body, row_expected in zip(body["aerial_intensity"], expected_intensity.tolist()):
         assert row_body == pytest.approx(row_expected, abs=1e-9)
     assert body["cutoff_frequency"] == pytest.approx(cutoff_frequency(NA, WAVELENGTH_UM))
+
+
+def test_simulate2d_incoherent_matches_direct_call():
+    resp = client.post("/api/2d/simulate", json={
+        "pattern_type": "Contact Hole Array", "hole_diameter": HOLE_DIAMETER, "pitch": PITCH,
+        "L": L2D, "N": N2D, "wavelength_nm": WAVELENGTH_NM, "NA": NA,
+        "coherence": "Incoherent", "threshold": 0.3,
+    })
+    assert resp.status_code == 200
+    body = resp.json()
+
+    grid = Grid2D(L=L2D, N=N2D)
+    mask = contact_hole_array(grid.X, grid.Y, hole_diameter=HOLE_DIAMETER, pitch=PITCH)
+    expected_intensity, _, _ = incoherent_aerial_image_2d(mask, grid, wavelength=WAVELENGTH_UM, NA=NA)
+
+    for row_body, row_expected in zip(body["aerial_intensity"], expected_intensity.tolist()):
+        assert row_body == pytest.approx(row_expected, abs=1e-9)
 
 
 def test_simulate2d_chip_block_layout_pattern_runs_end_to_end():

@@ -108,23 +108,35 @@ propagation/diffraction/aberrations/opc) to two spatial dimensions:
 - **`physics/lens2d.py`** — `pupil_function_freq_2d`, a genuine **circular** aperture
   (`fx²+fy²<=f_cutoff²`), more physically correct than `lens.py`'s 1D brick-wall cross-section;
   `coherent_aerial_image_2d` mirrors `lens.coherent_aerial_image` using `fft_engine.fft2d/ifft2d`.
-  Coherent-only — no 2D defocus/aberrations, no 2D incoherent/OTF path.
-- **`physics/imaging2d.py`** — reuses `imaging.apply_threshold` unchanged (already
-  shape-agnostic); `iou_score` is the 2D fidelity stand-in for 1D's EPE/linewidth-error.
+  Coherent path only — no 2D defocus/aberrations here (incoherent imaging lives in
+  `imaging2d.py` instead, mirroring the 1D lens.py/imaging.py split).
+- **`physics/imaging2d.py`** — the 2D ATF/OTF/incoherent path
+  (`amplitude_point_spread_function_2d`, `optical_transfer_function_2d`,
+  `incoherent_aerial_image_2d`, all built on `lens2d.py`'s circular pupil, mirroring
+  `imaging.py`'s own 1D OTF section); reuses `imaging.apply_threshold` unchanged (already
+  shape-agnostic); `iou_score` is the 2D fidelity stand-in for 1D's EPE/linewidth-error. No 2D
+  aberrations/defocus — only coherent vs. incoherent is a choice in this 2D extension.
 - **No 2D OPC, no formal 2D edge-placement-error metric.** A 2D "edge" is a contour, not a
   scan-for-0/1-transition point along one axis — correcting it needs gauge points along a
   polygon boundary biased along the local normal, genuinely different (and more open-ended)
   machinery than `physics/opc.py`'s 1D loop, not a mechanical extension of it. See
   `docs/physics_assumptions.md`'s "2D Extension Assumptions" section for the full boundary list.
-- **`backend/`** — one consolidated `POST /api/2d/simulate` endpoint (mask + target +
-  aerial_intensity + printed + fidelity_score together, since 2D arrays are far heavier than 1D
-  ones over JSON), extending `schemas.py`/`simulator.py`/`main.py` in place rather than forking
-  parallel `*2d.py` backend files.
+- **`backend/`** — `POST /api/2d/mask` (lightweight mask-only preview, mirrors `/api/mask`,
+  used by the pager's first two pages) and `POST /api/2d/simulate` (one consolidated endpoint:
+  mask + target + aerial_intensity + printed + fidelity_score together, since 2D arrays are far
+  heavier than 1D ones over JSON, branching coherent/incoherent on a `coherence` field exactly
+  like the 1D `AerialImageRequest` does), extending `schemas.py`/`simulator.py`/`main.py` in
+  place rather than forking parallel `*2d.py` backend files.
 - **`frontend/`** — a separate route, `pages/Simulator2D.tsx` at `/simulator-2d` (linked from
-  `Landing.tsx`'s second CTA), a single scrollable showcase page (not the 1D mode's fixed-viewport
-  pager), rendering `go.Heatmap` panels via `lib/heatmapTheme.ts`'s dataviz-skill-validated
-  sequential (aerial intensity) and categorical (printed-vs-target agreement map) colorscales.
-  Does not modify any `components/simulator/*` file or `pages/Simulator.tsx`.
+  `Landing.tsx`'s second CTA). A fixed-viewport 4-page pager mirroring `pages/Simulator.tsx`'s own
+  structure exactly (pattern choice → tune feature → optical system → results, same lifted-state/
+  CSS-transform-slide mechanism), built from `components/simulator2d/Section*2D.tsx` — reuses
+  `components/simulator/`'s generic `Modal`/`ScrollNavButton`/`ui.tsx` primitives directly, but
+  does not modify any of those files or `pages/Simulator.tsx`. Renders `go.Heatmap` panels via a
+  shared `components/simulator2d/HeatmapPanel.tsx`, using `lib/heatmapTheme.ts`'s
+  dataviz-skill-validated sequential (aerial intensity) and categorical (printed-vs-target
+  agreement map) colorscales. The optical-system page has a Coherent/Incoherent toggle (no focus
+  error — no 2D aberrations exist to tune) in its "Advanced options" modal, same precedent as 1D.
 
 ### Frontend/backend split (replaces the Streamlit app)
 
@@ -134,10 +146,10 @@ reference only, not maintained) and replaced by:
 - **`backend/`** — a FastAPI app (`backend/main.py`) that imports `physics/` directly (no
   `plotting/`, no matplotlib/plotly — those were UI-layer concerns of the old Streamlit app).
   `requirements-backend.txt` covers its dependencies (`fastapi`, `uvicorn`, `numpy`) separately
-  from `requirements.txt`, which now only serves `physics/`/`tests/`/`scripts/`. Seven POST
+  from `requirements.txt`, which now only serves `physics/`/`tests/`/`scripts/`. Eight POST
   endpoints (`/api/mask`, `/api/aerial-image`, `/api/atf-otf`, `/api/printed-feature`,
-  `/api/spectrum-pipeline`, `/api/opc`, `/api/2d/simulate`) plus `/health`; request/response
-  validation lives in
+  `/api/spectrum-pipeline`, `/api/opc`, `/api/2d/mask`, `/api/2d/simulate`) plus `/health`;
+  request/response validation lives in
   `backend/schemas.py`, the actual physics/-calling logic in `backend/simulator.py` (kept
   separate so it's unit-testable without going through HTTP — see `tests/test_api.py`).
 - **`frontend/`** — a Vite + React + TypeScript app (`react-router-dom`, `three` /

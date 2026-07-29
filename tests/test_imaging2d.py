@@ -1,16 +1,99 @@
 """
 tests/test_imaging2d.py
 ---------------------------
-Unit tests for physics/imaging2d.py: iou_score, plus a passthrough
-confirmation that imaging.apply_threshold (reused unchanged) works
-correctly on a 2D array.
+Unit tests for physics/imaging2d.py: the 2D ATF/OTF/incoherent-imaging
+path, iou_score, plus a passthrough confirmation that imaging.apply_threshold
+(reused unchanged) works correctly on a 2D array.
+
+Test organization mirrors tests/test_imaging.py: OTF physical-invariant
+checks first, then the incoherent aerial image's limiting cases, then
+iou_score.
 """
 
 import numpy as np
 import pytest
 
+from grid2d import Grid2D
+from masks2d import contact_hole_array
+from constants import WAVELENGTH, NA_DEFAULT
+from lens2d import coherent_aerial_image_2d, pupil_function_freq_2d
 from imaging import apply_threshold
-from imaging2d import iou_score
+from imaging2d import (
+    amplitude_point_spread_function_2d,
+    optical_transfer_function_2d,
+    incoherent_aerial_image_2d,
+    iou_score,
+)
+
+
+@pytest.fixture
+def grid():
+    return Grid2D(L=8.0, N=128)
+
+
+# ── ATF / amplitude PSF (2D) ─────────────────────────────────────────────────
+
+def test_amplitude_psf_2d_matches_pupil_function(grid):
+    """amplitude_point_spread_function_2d's H must be identical to
+    lens2d.pupil_function_freq_2d's own output -- reuse, not re-derivation."""
+    h, H = amplitude_point_spread_function_2d(grid, wavelength=WAVELENGTH, NA=NA_DEFAULT)
+    H_direct = pupil_function_freq_2d(grid, NA=NA_DEFAULT, wavelength=WAVELENGTH)
+    assert np.allclose(H, H_direct)
+    assert h.shape == (grid.N, grid.N)
+
+
+# ── OTF: physical invariants (2D generalization of Goodman Sec. 6.3.2) ──────
+
+def test_otf_2d_dc_is_exactly_one(grid):
+    OTF, _ = optical_transfer_function_2d(grid, wavelength=WAVELENGTH, NA=NA_DEFAULT)
+    dc_index = int(np.argmin(np.abs(grid.fx)))
+    assert OTF[dc_index, dc_index] == pytest.approx(1.0 + 0.0j)
+
+
+def test_otf_2d_never_exceeds_one(grid):
+    OTF, _ = optical_transfer_function_2d(grid, wavelength=WAVELENGTH, NA=NA_DEFAULT)
+    assert np.max(np.abs(OTF)) == pytest.approx(1.0, abs=1e-9)
+    assert np.all(np.abs(OTF) <= 1.0 + 1e-9)
+
+
+def test_otf_2d_is_real_no_aberration_path_exists(grid):
+    """This 2D extension has no aberration/defocus path at all -- the
+    pupil is always real, so the OTF must be real to numerical precision
+    on every call, not just for a specific unaberrated case."""
+    OTF, _ = optical_transfer_function_2d(grid, wavelength=WAVELENGTH, NA=NA_DEFAULT)
+    assert np.max(np.abs(np.imag(OTF))) < 1e-9
+
+
+# ── Incoherent 2D aerial image ───────────────────────────────────────────────
+
+def test_incoherent_2d_wide_open_pupil_reproduces_mask(grid):
+    mask = contact_hole_array(grid.X, grid.Y, hole_diameter=1.0, pitch=2.0)
+    intensity, OTF, H = incoherent_aerial_image_2d(mask, grid, wavelength=1e-6, NA=0.99)
+    assert np.max(np.abs(intensity - mask)) < 1e-6
+
+
+def test_incoherent_2d_preserves_object_mean(grid):
+    mask = contact_hole_array(grid.X, grid.Y, hole_diameter=1.0, pitch=2.0)
+    intensity, _, _ = incoherent_aerial_image_2d(mask, grid, wavelength=WAVELENGTH, NA=NA_DEFAULT)
+    assert np.mean(intensity) == pytest.approx(np.mean(mask), abs=1e-9)
+
+
+def test_incoherent_2d_is_nonnegative(grid):
+    mask = contact_hole_array(grid.X, grid.Y, hole_diameter=1.0, pitch=2.0)
+    intensity, _, _ = incoherent_aerial_image_2d(mask, grid, wavelength=WAVELENGTH, NA=NA_DEFAULT)
+    assert np.all(intensity >= -1e-9)
+
+
+def test_incoherent_2d_differs_from_coherent(grid):
+    """Sanity check the two 2D imaging paths aren't accidentally identical
+    (e.g. a copy-paste bug reusing the ATF instead of the OTF) -- hand-
+    verified max abs difference ~1.16 for this hole/pitch/NA combination,
+    well above a noise-level threshold."""
+    mask = contact_hole_array(grid.X, grid.Y, hole_diameter=1.0, pitch=2.0)
+    wavelength, NA = 0.365, 0.5
+    _, intensity_c, _ = coherent_aerial_image_2d(mask, grid, wavelength=wavelength, NA=NA)
+    intensity_i, _, _ = incoherent_aerial_image_2d(mask, grid, wavelength=wavelength, NA=NA)
+    assert np.max(np.abs(intensity_c - intensity_i)) > 0.1
 
 
 # ── apply_threshold on 2D arrays (reused unchanged -- plumbing check only) ──

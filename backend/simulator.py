@@ -49,7 +49,7 @@ from opc import edge_bias_opc
 from grid2d import Grid2D
 from masks2d import contact_hole_array, chip_block_layout
 from lens2d import coherent_aerial_image_2d
-from imaging2d import iou_score
+from imaging2d import incoherent_aerial_image_2d, iou_score
 
 from .schemas import (
     MaskRequest,
@@ -58,6 +58,8 @@ from .schemas import (
     PrintedFeatureRequest,
     SpectrumPipelineRequest,
     OpcRequest,
+    Mask2DRequest,
+    Mask2DParams,
     Simulate2DRequest,
 )
 
@@ -315,13 +317,16 @@ def to_json_list2d(arr: np.ndarray) -> List[List[Optional[float]]]:
     return [to_json_list(row) for row in np.asarray(arr, dtype=float)]
 
 
-def build_mask2d(req: Simulate2DRequest) -> Tuple[Grid2D, np.ndarray, np.ndarray]:
+def build_mask2d(req: Mask2DParams) -> Tuple[Grid2D, np.ndarray, np.ndarray]:
     """
-    Build the Grid2D + mask/target pair for a 2D simulate request, mirroring
+    Build the Grid2D + mask/target pair for a 2D request, mirroring
     build_mask's single branch on pattern_type (mask and target are
     identical arrays for both 2D pattern types, same as the 1D build_mask --
     there is no 2D OPC to eventually make them differ, since 2D OPC is an
-    explicitly out-of-scope boundary for this extension).
+    explicitly out-of-scope boundary for this extension). Takes any
+    Mask2DParams-shaped request -- both Mask2DRequest (mask-only preview)
+    and Simulate2DRequest (full pipeline) carry exactly the fields this
+    needs (pattern_type, hole_diameter, pitch, L, N), nothing more.
 
     Returns
     -------
@@ -338,20 +343,48 @@ def build_mask2d(req: Simulate2DRequest) -> Tuple[Grid2D, np.ndarray, np.ndarray
     return grid, mask, target
 
 
+def compute_mask2d(req: Mask2DRequest) -> dict:
+    """
+    Mask-only 2D preview -- the 2D analogue of compute_mask, used by the
+    first two pages of the 2D pager (pattern choice, tune feature), which
+    only need to show the mask shape, not run the full aerial-image/
+    threshold/fidelity pipeline on every slider tick.
+    """
+    grid, mask, target = build_mask2d(req)
+    return {
+        "x": to_json_list(grid.x),
+        "y": to_json_list(grid.y),
+        "mask": to_json_list2d(mask),
+        "target": to_json_list2d(target),
+    }
+
+
+def _aerial_image_intensity_2d(req: Simulate2DRequest, grid: Grid2D, mask: np.ndarray) -> np.ndarray:
+    """2D analogue of _aerial_image_intensity: branches coherent vs.
+    incoherent exactly the same way, just calling the 2D physics functions."""
+    wavelength = req.wavelength_nm / 1000.0
+    if req.coherence == "Coherent":
+        _, intensity, _ = coherent_aerial_image_2d(mask, grid, wavelength=wavelength, NA=req.NA)
+    else:
+        intensity, _, _ = incoherent_aerial_image_2d(mask, grid, wavelength=wavelength, NA=req.NA)
+    return intensity
+
+
 def compute_simulate2d(req: Simulate2DRequest) -> dict:
     """
-    2D mask -> coherent aerial image (lens2d.coherent_aerial_image_2d) ->
-    threshold (imaging.apply_threshold, reused unchanged) -> printed
-    feature, plus imaging2d.iou_score as the fidelity number -- the 2D
-    counterpart to compute_printed_feature, bundled into one response
-    (mask/target/aerial_intensity/printed/fidelity_score together) since a
-    2D array is ~100x+ heavier than a 1D one over JSON, the same bundling
-    reasoning compute_spectrum_pipeline already applies in the 1D backend.
+    2D mask -> coherent OR incoherent aerial image (_aerial_image_intensity_2d,
+    branching on req.coherence) -> threshold (imaging.apply_threshold,
+    reused unchanged) -> printed feature, plus imaging2d.iou_score as the
+    fidelity number -- the 2D counterpart to compute_printed_feature,
+    bundled into one response (mask/target/aerial_intensity/printed/
+    fidelity_score together) since a 2D array is ~100x+ heavier than a 1D
+    one over JSON, the same bundling reasoning compute_spectrum_pipeline
+    already applies in the 1D backend.
     """
     grid, mask, target = build_mask2d(req)
     wavelength = req.wavelength_nm / 1000.0
 
-    _, aerial_intensity, _ = coherent_aerial_image_2d(mask, grid, wavelength=wavelength, NA=req.NA)
+    aerial_intensity = _aerial_image_intensity_2d(req, grid, mask)
     printed = apply_threshold(aerial_intensity, threshold=req.threshold)
     score, warning = iou_score(target, printed)
     f0 = cutoff_frequency(req.NA, wavelength)

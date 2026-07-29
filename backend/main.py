@@ -45,10 +45,14 @@ unit-tested directly without going through HTTP (see tests/test_api.py).
 app": that app never had an OPC panel, so this endpoint's shape was
 designed fresh against physics/opc.py, not ported from anywhere.
 
-/api/2d/simulate (Week 12's 2D extension) is a second, separate addendum:
-a single consolidated endpoint (mask + target + aerial_intensity + printed
-+ fidelity_score together, not split per-concern like the 1D endpoints
-above) since 2D arrays are ~100x+ heavier than 1D ones over JSON -- see
+/api/2d/mask and /api/2d/simulate (Week 12's 2D extension) are a second,
+separate addendum. /api/2d/mask is a lightweight mask-only preview (mirrors
+/api/mask), used by the 2D pager's pattern-choice/tune-feature pages so
+they don't have to run the full aerial-image pipeline on every slider
+tick. /api/2d/simulate is a single consolidated endpoint for everything
+else (mask + target + aerial_intensity + printed + fidelity_score
+together, not split per-concern like the 1D endpoints above) since 2D
+arrays are ~100x+ heavier than 1D ones over JSON -- see
 backend/simulator.py's compute_simulate2d docstring for the bundling
 reasoning, and docs/physics_assumptions.md's "2D Extension Assumptions"
 section for this extension's scope (coherent-only, no 2D OPC/EPE).
@@ -79,6 +83,8 @@ from .schemas import (
     SpectrumPipelineResponse,
     OpcRequest,
     OpcResponse,
+    Mask2DRequest,
+    Mask2DResponse,
     Simulate2DRequest,
     Simulate2DResponse,
 )
@@ -144,6 +150,11 @@ def api_spectrum_pipeline(req: SpectrumPipelineRequest) -> dict:
 @app.post("/api/opc", response_model=OpcResponse)
 def api_opc(req: OpcRequest) -> dict:
     return simulator.compute_opc(req)
+
+
+@app.post("/api/2d/mask", response_model=Mask2DResponse)
+def api_mask_2d(req: Mask2DRequest) -> dict:
+    return simulator.compute_mask2d(req)
 
 
 @app.post("/api/2d/simulate", response_model=Simulate2DResponse)

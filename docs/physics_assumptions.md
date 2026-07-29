@@ -84,12 +84,16 @@ correct than the 1D module, not a mere dimensional extension of its approximatio
 identical NA/wavelength -> frequency relation (`lens.cutoff_frequency`, reused unchanged, since
 it has no axis-count dependence).
 
-### 3. Coherent imaging only
-`lens2d.coherent_aerial_image_2d` has no defocus/aberration parameter and no 2D incoherent/OTF
-path -- both are straightforward, well-understood generalizations of existing 1D code
-(`imaging.py`, `aberrations.py`) that simply were not the priority for this extension's stated
-goal (a mask -> aerial-image -> printed-feature heatmap visualization). Extension points for a
-future pass, not oversights.
+### 3. Coherent AND incoherent imaging, but no aberrations
+`physics/imaging2d.py` adds the 2D OTF/incoherent path (`amplitude_point_spread_function_2d`,
+`optical_transfer_function_2d`, `incoherent_aerial_image_2d`), built on `lens2d.py`'s circular
+pupil exactly the way `imaging.py` builds the 1D OTF path on `lens.py`'s pupil -- selectable via
+a Coherent/Incoherent toggle in the `/simulator-2d` results page, mirroring the 1D
+`AerialImageRequest.coherence` field. What's still NOT included: a defocus/aberration parameter
+(`lens2d.coherent_aerial_image_2d` and `imaging2d`'s OTF functions have no such parameter) --
+a straightforward, well-understood generalization of existing 1D code (`aberrations.py`) that
+simply isn't the priority for this extension. An extension point for a future pass, not an
+oversight.
 
 ### 4. No 2D OPC, no formal 2D edge-placement-error metric
 This is the one deliberate, load-bearing scope boundary of the entire 2D extension, not a
