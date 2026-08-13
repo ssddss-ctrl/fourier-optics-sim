@@ -168,9 +168,12 @@ export function SectionResults({
     <section className="flex h-screen w-full flex-col items-center justify-center gap-3 px-6">
       <ScrollNavButton onClick={onBack} label="back to optical system" />
 
-      <h1 className="text-xl font-semibold text-ink">Results</h1>
+      <div className="text-center">
+        <h1 className="font-display text-2xl font-semibold text-ink">Results</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+      </div>
 
-      <div className="w-full max-w-lg rounded-lg border border-axis bg-surface p-3">
+      <div className="wave-panel w-full max-w-lg p-3">
         <p className="mb-1 text-xs text-ink-muted">Threshold = {threshold.toFixed(2)}</p>
         {printedPanel.error ? (
           <div className="rounded border border-target/40 bg-target/10 px-3 py-2 text-sm text-target">

@@ -33,8 +33,8 @@ export function HeatmapPanel({
   height?: number;
 }) {
   return (
-    <div className="rounded-lg border border-axis bg-surface p-3">
-      <p className="mb-1 text-xs text-ink-muted">{title}</p>
+    <div className="wave-panel p-3">
+      <p className="mb-1 font-mono text-xs text-ink-muted">{title}</p>
       <Plot
         data={[
           {

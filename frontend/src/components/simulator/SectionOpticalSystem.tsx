@@ -119,8 +119,9 @@ export function SectionOpticalSystem({
       <ScrollNavButton onClick={onBack} label="back to tuning" />
 
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-ink">Set your optical system</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="font-display text-2xl font-semibold text-ink">Set your optical system</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+        <p className="mt-3 text-sm text-ink-muted">
           Wavelength and NA set the resolution limit — see how it compares to your pattern.
         </p>
       </div>
@@ -144,7 +145,7 @@ export function SectionOpticalSystem({
         />
       </div>
 
-      <div className="w-full max-w-lg rounded-lg border border-axis bg-surface p-3">
+      <div className="wave-panel w-full max-w-lg p-3">
         <p className="mb-1 text-xs text-ink-muted">
           f0 (coherent) = {f0.toFixed(2)} µm⁻¹, f1 (incoherent) = {f1.toFixed(2)} µm⁻¹
         </p>
@@ -198,7 +199,7 @@ export function SectionOpticalSystem({
       <button
         type="button"
         onClick={onNext}
-        className="rounded-full bg-phase px-6 py-2.5 text-sm font-medium text-page transition-opacity hover:opacity-90"
+        className="rounded-full bg-phase px-6 py-2.5 font-mono text-xs tracking-[0.08em] text-page uppercase transition-opacity hover:opacity-90"
       >
         View Results →
       </button>

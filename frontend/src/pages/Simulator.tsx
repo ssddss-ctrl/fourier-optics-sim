@@ -68,18 +68,18 @@ export default function Simulator() {
     <div className="fixed inset-0 overflow-hidden bg-page text-ink">
       <Link
         to="/"
-        className="fixed top-4 left-4 z-10 text-xs text-ink-muted transition-colors hover:text-ink"
+        className="fixed top-4 left-4 z-10 font-mono text-xs text-ink-muted transition-colors hover:text-ink"
       >
         ← Home
       </Link>
       <Link
         to="/simulator-2d"
-        className="fixed top-4 left-24 z-10 text-xs text-ink-muted transition-colors hover:text-ink"
+        className="fixed top-4 left-24 z-10 font-mono text-xs text-ink-muted transition-colors hover:text-ink"
       >
         2D Simulator →
       </Link>
 
-      <div className="fixed top-4 right-4 z-10 text-xs text-ink-muted">
+      <div className="tabular fixed top-4 right-4 z-10 font-mono text-xs text-ink-muted">
         {pageIndex + 1} / {PAGE_COUNT}
       </div>
 

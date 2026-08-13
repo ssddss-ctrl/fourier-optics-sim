@@ -12,7 +12,7 @@ export function ScrollNavButton({ onClick, label = "back to revise" }: { onClick
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1 text-xs text-ink-muted transition-colors hover:text-ink-secondary"
+      className="inline-flex items-center gap-1 font-mono text-xs text-ink-muted transition-colors hover:text-ink-secondary"
     >
       ▲ {label}
     </button>

@@ -116,7 +116,10 @@ export function SectionResults2D({
     <section className="flex h-screen w-full flex-col items-center justify-center gap-3 px-6">
       <ScrollNavButton onClick={onBack} label="back to optical system" />
 
-      <h1 className="text-xl font-semibold text-ink">Results</h1>
+      <div className="text-center">
+        <h1 className="font-display text-2xl font-semibold text-ink">Results</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+      </div>
 
       {panel.error && (
         <div className="w-full max-w-md rounded border border-target/40 bg-target/10 px-3 py-2 text-sm text-target">

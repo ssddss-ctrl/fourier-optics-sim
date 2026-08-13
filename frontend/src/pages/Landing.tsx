@@ -53,7 +53,10 @@ export default function Landing() {
         }}
         className="relative flex h-screen flex-col items-center justify-center gap-10 bg-page px-4"
       >
-        <h1 className="text-center text-4xl font-semibold text-ink sm:text-5xl">
+        <p className="font-mono text-xs tracking-[0.25em] text-primary uppercase">
+          Coherent imaging, from first principles
+        </p>
+        <h1 className="text-center font-display text-4xl font-semibold text-ink sm:text-5xl">
           Fourier Optics Lithography Simulator
         </h1>
         <div className="h-[55vh] w-full max-w-2xl">
@@ -94,13 +97,13 @@ export default function Landing() {
         <div className="flex flex-wrap items-center justify-center gap-4">
           <button
             onClick={() => navigate("/simulator")}
-            className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+            className="rounded-full border border-primary px-6 py-3 font-mono text-xs tracking-[0.08em] text-ink uppercase transition-colors hover:bg-primary hover:text-page"
           >
             1D Simulator →
           </button>
           <button
             onClick={() => navigate("/simulator-2d")}
-            className="rounded-full border border-primary px-6 py-3 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+            className="rounded-full border border-primary px-6 py-3 font-mono text-xs tracking-[0.08em] text-ink uppercase transition-colors hover:bg-primary hover:text-page"
           >
             2D Simulator →
           </button>

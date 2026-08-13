@@ -37,8 +37,8 @@ function PatternCard({
       }`}
     >
       {children}
-      <div className="mt-4 text-sm font-semibold text-ink">{label}</div>
-      <div className="text-xs text-ink-muted">{description}</div>
+      <div className="mt-4 font-display text-sm font-semibold text-ink">{label}</div>
+      <div className="font-mono text-xs text-ink-muted">{description}</div>
     </button>
   );
 }
@@ -66,8 +66,9 @@ export function SectionMaskChoice({
   return (
     <section className="flex h-screen w-full flex-col items-center justify-center gap-5 px-6">
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-ink">Choose your desired printed feature</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="font-display text-2xl font-semibold text-ink">Choose your desired printed feature</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+        <p className="mt-3 text-sm text-ink-muted">
           Pick a pattern to print — you&apos;ll tune its size on the next step.
         </p>
       </div>
@@ -97,7 +98,7 @@ export function SectionMaskChoice({
         </PatternCard>
       </div>
 
-      <div className="w-full max-w-lg rounded-lg border border-axis bg-surface p-3">
+      <div className="wave-panel w-full max-w-lg p-3">
         {preview.error ? (
           <div className="rounded border border-target/40 bg-target/10 px-3 py-2 text-sm text-target">
             Failed to load: {preview.error}
@@ -143,7 +144,7 @@ export function SectionMaskChoice({
       <button
         type="button"
         onClick={onNext}
-        className="rounded-full border border-primary px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+        className="rounded-full border border-primary px-6 py-2.5 font-mono text-xs tracking-[0.08em] text-ink uppercase transition-colors hover:bg-primary hover:text-page"
       >
         Next: Tune your feature →
       </button>

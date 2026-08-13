@@ -9,8 +9,11 @@ import { useEffect, useState } from "react";
 
 export function ControlGroup({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-3 border-b border-axis pb-5 last:border-0">
-      <h2 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">{title}</h2>
+    <div className="space-y-3 pb-5 last:pb-0">
+      <div>
+        <h2 className="font-mono text-xs tracking-[0.12em] text-ink-faint uppercase">{title}</h2>
+        <div className="wave-divider mt-1.5" />
+      </div>
       {children}
     </div>
   );
@@ -39,9 +42,9 @@ export function SliderField({
 }) {
   return (
     <label className="block text-sm">
-      <div className="mb-1 flex justify-between text-ink-secondary">
+      <div className="mb-1.5 flex justify-between text-ink-secondary">
         <span>{label}</span>
-        <span className="text-ink-muted">
+        <span className="tabular font-mono text-xs text-primary">
           {value.toFixed(decimals)}
           {unit ?? ""}
         </span>
@@ -53,7 +56,7 @@ export function SliderField({
         step={step}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-full accent-primary"
+        className="wave-slider"
         data-testid={testId}
       />
     </label>
@@ -104,7 +107,7 @@ export function NumberField({
           if (!Number.isNaN(parsed)) onChange(parsed);
         }}
         onBlur={() => setText(value.toString())}
-        className="w-full rounded border border-axis bg-page px-2 py-1 text-ink"
+        className="w-full border border-axis bg-page px-2 py-1 font-mono text-ink"
       />
     </label>
   );
@@ -126,22 +129,21 @@ export function PanelFrame({
   testId: string;
 }) {
   return (
-    <section
-      className="rounded-lg border border-axis bg-surface p-4"
-      data-testid={testId}
-      data-loading={loading}
-    >
-      <h2 className="text-base font-semibold text-ink">{title}</h2>
-      {caption && <p className="mt-1 text-xs text-ink-muted">{caption}</p>}
-      {error ? (
-        <div className="mt-3 rounded border border-target/40 bg-target/10 px-3 py-2 text-sm text-target">
-          Failed to load: {error}
-        </div>
-      ) : (
-        <div className={loading ? "mt-3 opacity-60 transition-opacity" : "mt-3 transition-opacity"}>
-          {children}
-        </div>
-      )}
+    <section className="wave-panel" data-testid={testId} data-loading={loading}>
+      <div className="wave-divider" />
+      <div className="p-4">
+        <h2 className="font-display text-base font-semibold text-ink">{title}</h2>
+        {caption && <p className="mt-1 text-xs text-ink-muted">{caption}</p>}
+        {error ? (
+          <div className="mt-3 rounded border border-target/40 bg-target/10 px-3 py-2 text-sm text-target">
+            Failed to load: {error}
+          </div>
+        ) : (
+          <div className={loading ? "mt-3 opacity-60 transition-opacity" : "mt-3 transition-opacity"}>
+            {children}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -159,10 +161,10 @@ export function WarningBanner({ children }: { children: React.ReactNode }) {
 
 export function Metric({ label, value, delta }: { label: string; value: string; delta?: string }) {
   return (
-    <div className="rounded border border-axis bg-page px-3 py-2">
-      <div className="text-xs text-ink-muted">{label}</div>
-      <div className="text-lg font-semibold text-ink">{value}</div>
-      {delta && <div className="text-xs text-ink-secondary">{delta}</div>}
+    <div className="border border-axis bg-page px-3 py-2">
+      <div className="font-mono text-xs tracking-wide text-ink-muted uppercase">{label}</div>
+      <div className="tabular font-display text-lg font-semibold text-ink">{value}</div>
+      {delta && <div className="font-mono text-xs text-ink-secondary">{delta}</div>}
     </div>
   );
 }

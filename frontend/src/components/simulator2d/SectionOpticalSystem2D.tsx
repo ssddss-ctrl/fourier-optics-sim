@@ -96,8 +96,9 @@ export function SectionOpticalSystem2D({
       <ScrollNavButton onClick={onBack} label="back to tuning" />
 
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-ink">Set your optical system</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="font-display text-2xl font-semibold text-ink">Set your optical system</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+        <p className="mt-3 text-sm text-ink-muted">
           Wavelength and NA set the resolution limit — see how it shapes the aerial image.
         </p>
       </div>
@@ -153,7 +154,7 @@ export function SectionOpticalSystem2D({
       <button
         type="button"
         onClick={onNext}
-        className="rounded-full bg-phase px-6 py-2.5 text-sm font-medium text-page transition-opacity hover:opacity-90"
+        className="rounded-full bg-phase px-6 py-2.5 font-mono text-xs tracking-[0.08em] text-page uppercase transition-opacity hover:opacity-90"
       >
         View Results →
       </button>

@@ -67,8 +67,9 @@ export function SectionMaskChoice2D({
   return (
     <section className="flex h-screen w-full flex-col items-center justify-center gap-5 px-6">
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-ink">Choose your 2D pattern</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="font-display text-2xl font-semibold text-ink">Choose your 2D pattern</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+        <p className="mt-3 text-sm text-ink-muted">
           Pick a pattern to print — you&apos;ll tune its size on the next step.
         </p>
       </div>
@@ -124,7 +125,7 @@ export function SectionMaskChoice2D({
       <button
         type="button"
         onClick={onNext}
-        className="rounded-full border border-primary px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+        className="rounded-full border border-primary px-6 py-2.5 font-mono text-xs tracking-[0.08em] text-ink uppercase transition-colors hover:bg-primary hover:text-page"
       >
         Next: Tune your feature →
       </button>

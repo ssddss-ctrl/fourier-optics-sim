@@ -24,7 +24,7 @@ export const SECONDARY_INK = "#c3c2b7";
 export const MUTED_INK = "#898781";
 export const GRIDLINE_COLOR = "#2c2c2a";
 export const AXIS_LINE_COLOR = "#383835";
-export const FONT_FAMILY = "system-ui, -apple-system, 'Segoe UI', sans-serif";
+export const FONT_FAMILY = "'Space Mono', ui-monospace, 'SFMono-Regular', monospace";
 
 // ── Categorical series colors (validated -- see plotting/interactive.py) ────
 export const PRIMARY_COLOR = "#3987e5";

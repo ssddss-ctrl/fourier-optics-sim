@@ -68,16 +68,17 @@ export function Modal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between gap-4">
-          <h2 className="text-base font-semibold text-ink">{title}</h2>
+          <h2 className="font-display text-base font-semibold text-ink">{title}</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-sm text-ink-muted transition-colors hover:text-ink"
+            className="font-mono text-sm text-ink-muted transition-colors hover:text-ink"
             aria-label="Close"
           >
             ✕
           </button>
         </div>
+        <div className="wave-divider -mt-2 mb-4" />
         {children}
       </div>
     </div>,

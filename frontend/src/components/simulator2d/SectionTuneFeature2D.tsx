@@ -53,8 +53,9 @@ export function SectionTuneFeature2D({
       <ScrollNavButton onClick={onBack} label="back to pattern choice" />
 
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-ink">Tune your feature</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="font-display text-2xl font-semibold text-ink">Tune your feature</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+        <p className="mt-3 text-sm text-ink-muted">
           {patternType === "Contact Hole Array"
             ? "Set the hole diameter and pitch — watch the array update below."
             : "This layout is fixed for now — see the preview below."}
@@ -106,7 +107,7 @@ export function SectionTuneFeature2D({
       <button
         type="button"
         onClick={onNext}
-        className="rounded-full border border-primary px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+        className="rounded-full border border-primary px-6 py-2.5 font-mono text-xs tracking-[0.08em] text-ink uppercase transition-colors hover:bg-primary hover:text-page"
       >
         Next: Optical system →
       </button>

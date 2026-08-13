@@ -10,17 +10,81 @@
 @theme {
   --color-page: #0d0d0d;          /* PAGE_PLANE */
   --color-surface: #1a1a19;       /* CHART_SURFACE */
+  --color-surface-raised: #201f1c;
   --color-ink: #ffffff;           /* PRIMARY_INK */
   --color-ink-secondary: #c3c2b7; /* SECONDARY_INK */
   --color-ink-muted: #898781;     /* MUTED_INK */
+  --color-ink-faint: #5c5a54;
   --color-grid: #2c2c2a;          /* GRIDLINE_COLOR */
   --color-axis: #383835;          /* AXIS_LINE_COLOR */
   --color-primary: #3987e5;       /* PRIMARY_COLOR (blue) */
   --color-phase: #008300;         /* PHASE_COLOR (green) */
   --color-target: #e66767;        /* TARGET_COLOR (red) */
+
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, "SFMono-Regular", monospace;
 }
 
 body {
   background-color: var(--color-page);
   color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+ * Wavefront divider: the one signature device, standing in for a plain
+ * hairline everywhere a rule would otherwise go (section headings, panel
+ * tops) -- a single tiled period of a sine trace in the primary beam
+ * color, since this whole app is one continuous argument about what a
+ * wave does to a mask pattern.
+ */
+.wave-divider {
+  height: 6px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='8' viewBox='0 0 24 8'%3E%3Cpath d='M0,4 C3,0 9,0 12,4 C15,8 21,8 24,4' fill='none' stroke='%233987e5' stroke-width='1.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-size: 24px 8px;
+  opacity: 0.55;
+}
+
+.wave-panel {
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-axis);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+/* Custom range slider: a thin glowing "beam" track with a soft circular
+   thumb, distinct from the plain OS control and from sibling projects'
+   sharp reticle/oscilloscope thumbs. */
+input[type="range"].wave-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--color-axis);
+  outline: none;
+}
+input[type="range"].wave-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(57, 135, 229, 0.18);
+  cursor: pointer;
+}
+input[type="range"].wave-slider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  border: none;
+  background: var(--color-primary);
+  box-shadow: 0 0 0 4px rgba(57, 135, 229, 0.18);
+  cursor: pointer;
 }

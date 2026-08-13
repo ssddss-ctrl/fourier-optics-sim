@@ -62,8 +62,9 @@ export function SectionTuneFeature({
       <ScrollNavButton onClick={onBack} label="back to feature choice" />
 
       <div className="text-center">
-        <h1 className="text-xl font-semibold text-ink">Tune your feature</h1>
-        <p className="mt-1 text-sm text-ink-muted">
+        <h1 className="font-display text-2xl font-semibold text-ink">Tune your feature</h1>
+        <div className="wave-divider mx-auto mt-2 w-16" />
+        <p className="mt-3 text-sm text-ink-muted">
           {patternType === "Isolated Line"
             ? "Set the line width — watch the mask update below."
             : "Set the pitch and duty cycle — watch the mask update below."}
@@ -102,7 +103,7 @@ export function SectionTuneFeature({
         )}
       </div>
 
-      <div className="w-full max-w-lg rounded-lg border border-axis bg-surface p-3">
+      <div className="wave-panel w-full max-w-lg p-3">
         <p className="mb-1 text-xs text-ink-muted">
           {patternType === "Isolated Line"
             ? `Isolated Line — w = ${featureWidth.toFixed(2)} µm`
@@ -152,7 +153,7 @@ export function SectionTuneFeature({
       <button
         type="button"
         onClick={onNext}
-        className="rounded-full border border-primary px-6 py-2.5 text-sm font-medium text-ink transition-colors hover:bg-primary hover:text-page"
+        className="rounded-full border border-primary px-6 py-2.5 font-mono text-xs tracking-[0.08em] text-ink uppercase transition-colors hover:bg-primary hover:text-page"
       >
         Next: Optical system →
       </button>
